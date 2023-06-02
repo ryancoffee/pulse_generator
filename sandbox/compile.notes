@@ -1,0 +1,1 @@
+g++ -Wall -I/usr/local/include -I/opt/boost/include -std=gnu++14 -c -D_USE_MATH_DEFINES -O3 hello_tf.c

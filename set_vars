@@ -1,0 +1,147 @@
+#!/bin/bash
+
+starttime=$(date +%s);
+export HOSTNAME=$HOSTNAME:
+export nthreads=60;
+export datadir='$HOME/pulsegendata/d5files/';
+mkdir -p $datadir;
+
+#unsetting to clear previous export commands
+unset skipcalibration
+unset skipimages
+#comment out the export definition to get this env var to act like a strict bool (e.g. true if defined, only false if unset)
+#but to be defined, we have to set it to some value
+#export skipcalibration=true;
+#export skipimages=true;
+
+export fsWindow=512;
+
+export randphase_std=5; # in units of pi
+
+export npulses=1000;
+export delays_mean=0;
+export delays_std=128;
+
+export w0=600; #in THz
+export w_width=200;
+export lambda_onoff=10;
+export lambda_1=
+#export tspan=1024;
+#export tspan=4096;
+#export tspan=8192;
+#export tspan=16384;
+export tspan=32768; ## really using this one
+#export tspan=65536; ## this one when using a 40000 fs window and a chirp in the 6000-8000 range
+#export tspan=131072;
+#export tspan=1048576;
+export ngroupsteps=1; # figure out how to handle the group delays
+export groupdelay=2.4;
+export backdelay=0.5; 
+export netalon=0; #2; # set to 0 for no etalon or any integer > 0 for etalon bounce roundtrips.
+export etalon=.16; #0.16; #0.08; # .017; # 0.11; #((n1-n2)/(n1+n2))**2 power for surface normal bounce so (1/3)**2 for SiN, .017 for water (0.3/2.3)**2
+# n1=1 n2 = 1.8328 for YAG --> etalon = (.8/2.8)**2 = 0.081
+# YAG index 1.8
+#export etalondelay=80; #1200; #86.6; #87.; #26.; # 26fs for 2 microns SiN, 13fs for 1 micron, 
+export etalondelay=240; # for YAG at 20 microns thick 20 mu / .3 [mu/fs] * n_yag * 2 for double pass = 240 fs roundtrip delay
+# this should be n(omega)*thickness/C = 1.5*10microns/(.3micronsPfs) = 15/.3 in femtoseconds
+# try delays again... etalon delay is the round trip of the light, .3microns/fs is C, so 1fs in .3 microns, double passed means 6fs in a SiN of 1 micron thick... N=2, C=.3microns/fs, thickness = 2 microns, double pass gives 4 microns of delay... so 2/.3*2*2 = 8/.3 
+# 1.3/.3*10microns*2 double pass for liquid water sheet = 86.6 fs.
+# diamond n=2.4, thickness 50 microns 2.4/C*2 = 800 fs delay 		
+# diamond, 5mu*2.4*1fs/.3mu*2 = 80 fs
+# diamond etalon (1.4/3.4)**2 = 0.16
+
+export noisescale=.00005;
+export noisesampleskip=5;
+export printnoisesamples=0; # use this to control wheter to printout noise samples
+
+export sampleinterval=4;
+
+export nu_low=0.492; # 610nm 
+export nu_high=0.769; # 390nm 
+
+##################################################################
+########## Calculating for simulating Fiber bundles. #############
+##################################################################
+## 1 + sum_{n=1,nrows} n * 6
+## 1 7 19 37 61 91 127 169 217 271 331 397 469 547
+
+export nfibers=109; #61; #61; #109;
+unset shuffle_fibers;
+unset scale_fibers;
+#export shuffle_fibers=1;
+export scale_fibers=1;
+export fiberdiam=0.11;
+#export laserdiam=5.5; ## this behaves properly
+#export xraydiam=0.125;
+export laserdiam=55.; ## this behaves properly
+export xraydiam=12.5;
+export bundle_fsPmm=3333.;
+
+export stepwidth=100.0;
+export attenuation=0.0; # changed the definition of attenuation, this should then be just the difference from one now
+export phase=0.0001; #0.0001; # now I'm assuming based on below that 1 micron of diamond gives index to 1e-4; #1e1; #0.1; # about .1 = 1e-3 * 10* pi/.3 
+# phase should be the optical phase which is a function of optical frequency Dn(omega)*C/thickness/omega
+# Dn(omega)*thickness/C*omega = deltan*10microns/(.3micronsPfs)*2pi(nu) = 1e-3*10microns/.3micronsPfs*2pi*(0.5PHz)
+# dn = 1e-3, 10 microns/.3miconsPfs (/period in fs or * freq in PHz) * 2 pi for radians = .1 if pi=3 and 600nm=2fs period
+# diamond phase 50microns * 1e-5/.3*2pi*0.5PHz = 5e-3
+# water phase 10 microns * 1e-5/.3*spi*0.5PHz = 1e-3 for 10 microns and 1e-5 change in index when pumped.
+
+# signal decay parameters, one fast one slow, inverse femtseconds decay rates, a and b really define the ratio of two decays
+export a=2.0;
+export alpha=0.0001;
+export b=1.0;
+export beta=0.00002;
+
+# adding interferrometric pulse delay step and then retime step
+
+# backdelay = 3 times the groupdelay?? I guess.
+# 0.2 microns SiN = 0.68 fs
+# 0.5 microns SiN = 1.7 fs
+# 2 microns SiN = 6.8 fs
+# 75 microns quartz (1.55 - 1.0)*l/c = 138 fs
+# 150 mircons quartz = 275 fs
+# 55 microns diamond = 257 fs
+# 500 microns GGG =
+# 500 microns CeYAG = 
+
+# indices 
+#	SiN = 2.04, R=(1.04)**2/(2.04)**2 = 0.26, reflectance R is not the amplitude and it should be R*R for twice reflected waves, but then amplitude sum, so just use R.
+# 	quartz = 1.55, R = 0.0465
+#	diamond = 2.42, R = 0.172
+#	GGG
+#	CeYAG
+
+#	BBO... n = 1.68 @ 500nm 
+#	(so 2mm of BBO gives an etalon delay of 1.26/3e10*.2 = 8400fs)
+#	(birefringent delay is delta n / 3e10 * thickness --> 0.1235 / 3e10 * .2 = 823 fs
+# 	n**2 = 2.7405 + ( 0.0184 / (lam**2 - 0.0179) ) - (0.0155 * lam**2)
+
+touch logfile
+# call to main #
+export doublepulse=0; #bool that tells whether to expect a double pulse
+export doublepulsedelay=200;
+export chirp=-2000; #-6000; # -2000; # -2000 is normal #-1200; # typically a value of -1200 is about the usual chirp we use in spectral timing.
+export TOD=0;
+export FOD=0;
+export fifthOD=0;
+# noise values to simulate unstable continuum, should be positive
+export usechirpnoise=0;
+export chirpnoise=0; 
+export TODnoise=0;
+export FODnoise=0;
+export fifthODnoise=0;
+
+export interferedelay=1650; #6000; #8000; #1650; #1650; #1650 matches YAG for xppc00117 run 136 #2000 seems to fit the xppc0117 data #1650; #823; #617; #2468; #617; #413; #412; #2500; #823; # nominally 823 for 2mm of alphaBBO;
+export interferephase=1;
+export gain=200000000000; #20000000;
+export saturate=40960;
+export lamsamples=1024;
+
+export carriersfile=$carriersdir$carriersfilename;
+export filebase=$datadir"chirp"$chirp"_interferedelay"$interferedelay"_photonen"$xrayphoton_energy"_carriertag"$carriertag"_nfibers"$nfibers"_netalon"$netalon"_";
+export calfilebase=$calibdir"chirp"$chirp"_interferedelay"$interferedelay"_photonen"$xrayphoton_energy"_"$carriertag"_ncalibdelays"$ncalibdelays"_netalon"$netalon"_";
+echo "---	Environment variables exported";
+echo "---	filebase = "$filebase;
+echo "---	calfilebase = "$calfilebase;
+echo "---	carriersfilename = "$carriersfile;
+
