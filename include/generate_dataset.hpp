@@ -15,6 +15,7 @@
 #include <vector>
 
 // my includes
+#include "Params.hpp"
 #include "Constants.hpp"
 #include "Pulse.hpp"
 #include "Noise.hpp"

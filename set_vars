@@ -6,22 +6,22 @@ export nthreads=60;
 export datadir="$HOME/pulsegendata/h5files/";
 mkdir -p $datadir;
 
-export fsWindow=50;
-export randphase_std=5; # in units of pi
+export fsWindow=100;
 
 export npulses=1024;
+
 export delays_mean=0;
 export delays_std=25;
 
-export w0=600; #in THz
-export w_width=200;
-export lambda_onoff=10;
-export lambda_1=
-export tspan=32768; ## really using this one
+export amp_mean=1;
+export amp_std=1;
 
-export noisescale=.00005;
-export noisesampleskip=5;
-export printnoisesamples=0; # use this to control wheter to printout noise samples
+export lambda_0=600; #in nm
+export lambda_width=200;
+export lambda_onoff=10;
+export tspan=10000; ##32768; ## really using this one
+
+export noisescale=.005;
 
 export sampleinterval=4;
 
@@ -30,12 +30,11 @@ export nu_high=0.769; # 390nm
 
 touch logfile
 # call to main #
-export chirp=-2000; #-6000; # -2000; # -2000 is normal #-1200; # typically a value of -1200 is about the usual chirp we use in spectral timing.
+export chirp=0; 
 export TOD=0;
 export FOD=0;
 export fifthOD=0;
 # noise values to simulate unstable continuum, should be positive
-export usechirpnoise=0;
 export chirpnoise=0; 
 export TODnoise=0;
 export FODnoise=0;
@@ -44,6 +43,7 @@ export fifthODnoise=0;
 export gain=200000000000; #20000000;
 export saturate=40960;
 export lamsamples=1024;
+
 
 export filebase=$datadir"dataset";
 echo "---	Environment variables exported";
