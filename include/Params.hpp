@@ -15,7 +15,7 @@ class Params
 	friend class PulseFreq;
 
 	public:
-	Params();
+	Params(std::string filebase = "../data",float delays_mean=0.,float delays_std=50.,float amp_mean=1.,float amp_std=1.);
 	~Params();
 
 	size_t setNpulses(size_t in){npulses=in;return npulses;}
@@ -37,48 +37,41 @@ class Params
 	float omega_onoff(void){return ( twopi<float>()/(lam0+lamwidth/float(2)-lamonoff)*C_nmPfs<float>()*fsPau<float>() - omega_low() );}
 	float omega0(void){ return (omega_high()+omega_low())/float(2);}
 
-	/* =========== chirp interfaces ============= */
-	void initchirp(float second, float third, float fourth, float fifth);
-	std::vector<float> & getchirp(void){return chirpvec;}
-	std::vector<float> & getchirpnoise(void);
-
-	float chirp(float in){chirpvec[0] = in; return chirpvec[0];}
-	float TOD(float in){chirpvec[1] = in; return chirpvec[1];}
-	float FOD(float in){chirpvec[2] = in; return chirpvec[2];}
-	float fifthOD(float in){chirpvec[3] = in; return chirpvec[3];}
-	float chirp(void){return chirpvec[0];}
-	float TOD(void){return chirpvec[1];}
-	float FOD(void){return chirpvec[2];}
-	float fifthOD(void){return chirpvec[3];}
-
-	bool addchirpnoise(bool in){usechirpnoise = in; return usechirpnoise;}
-	bool addchirpnoise(void){return usechirpnoise;}
-	void initchirpnoise(float second,float third,float fourth,float fifth);
-
-	/* =========== random interfaces =========== */
-	float delays_rand(void){return (*delays_distributionPtr)(rng);}
-	float laser_inten_rand(void){return (*laser_distributionPtr)(rng);}
-
+	Params & initChirp(float second=0,float third=0,float fourth=0,float fifth=0);
+	std::vector<float> & getChirp(void);
+	float getAmp(void);
+	float getDelay(void);
+	Params & setnulims(float low, float high);
+	Params & set_lamsamples(size_t in){lamsamples = in; return *this;}
+	Params & set_gain(float in){ gain = in; return *this;} 
+	Params & set_noisescale(float in){ noisescale = in; return *this;}
+	Params & set_sampleinterval(size_t in){ sampleinterval = in; return *this;}
+	Params & set_saturate(uint16_t in){saturate = in; return *this;}
 
 	private:
 
 	size_t npulses;
 	float tspan;
 	float lam0,lamwidth,lamonoff;
-	bool usechirpnoise;
-	bool userandphase;
+	float nu_low,nu_high;
+	size_t lamsamples;
+	float gain;
+	size_t sampleinterval;
+	uint16_t saturate;
+	float noisescale;
 
 	std::string fbase;
-	std::string calfbase;
-
-	std::vector<float> chirpvec;//(4,float(0));
 
 	/* =========== random members =========== */
 	//std::default_random_engine rng;
 	std::random_device rng;
 
-	std::normal_distribution<float> * delays_distributionPtr;
+	std::uniform_real_distribution<float>* delays_distributionPtr;
 	std::uniform_real_distribution<float>* laser_distributionPtr; 
+	std::uniform_real_distribution<float>* chirpDistPtr;
+	std::uniform_real_distribution<float>* TODDistPtr;
+	std::uniform_real_distribution<float>* FODDistPtr;
+	std::uniform_real_distribution<float>* fifthODDistPtr;
 	std::normal_distribution<float>* chirpnoiseDistPtr;
 	std::normal_distribution<float>* TODnoiseDistPtr;
 	std::normal_distribution<float>* FODnoiseDistPtr;

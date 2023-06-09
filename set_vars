@@ -2,7 +2,7 @@
 
 starttime=$(date +%s);
 export HOSTNAME=$HOSTNAME:
-export nthreads=60;
+export nthreads=8;
 export datadir="$HOME/pulsegendata/h5files/";
 mkdir -p $datadir;
 
@@ -30,10 +30,10 @@ export nu_high=0.769; # 390nm
 
 touch logfile
 # call to main #
-export chirp=0; 
-export TOD=0;
-export FOD=0;
-export fifthOD=0;
+export chirp=100; 
+export TOD=10;
+export FOD=1;
+export fifthOD=.1;
 # noise values to simulate unstable continuum, should be positive
 export chirpnoise=0; 
 export TODnoise=0;
@@ -48,4 +48,7 @@ export lamsamples=1024;
 export filebase=$datadir"dataset";
 echo "---	Environment variables exported";
 echo "---	filebase = $filebase";
+echo "---	nthreads = $nthreads";
+echo "---	npulses = $npulses";
 
+#./generate_dataset 

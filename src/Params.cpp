@@ -1,65 +1,56 @@
 #include <Params.hpp>
 
-Params::Params(void):
-	usechirpnoise(false)
+Params::Params(std::string filebase,float delays_mean,float delays_std,float amp_mean,float amp_std)
+	:fbase(filebase)
 {
+	std::cerr << "Constructor Params()" << std::endl;
 
-	std::cerr << "Constructor Prams()" << std::endl;
-
-	chirpvec.resize(4,float(0));
-	std::string filebase = std::string(getenv("filebase"));
-
-	delays_distributionPtr = new std::normal_distribution<float>(
-			float(atof(getenv("delays_mean"))),
-			float(atof(getenv("delays_std"))));
-	laser_distributionPtr = new std::uniform_real_distribution<float> (
-			float(atof(getenv("amp_mean"))) - float(atof(getenv("amp_std"))),
-			float(atof(getenv("amp_mean"))) + float(atof(getenv("amp_std"))),
+	delays_distributionPtr = new std::uniform_real_distribution<float>(
+			delays_mean - delays_std,
+			delays_mean + delays_std
 			);
-
-
+	laser_distributionPtr = new std::uniform_real_distribution<float> (
+			amp_mean - amp_std,
+			amp_mean + amp_std
+			);
 }
+
 
 Params::~Params(void)
 {
 	delete delays_distributionPtr;
 	delete laser_distributionPtr;
-	if (usechirpnoise){
-		delete chirpnoiseDistPtr;
-		delete TODnoiseDistPtr;
-		delete FODnoiseDistPtr;
-		delete fifthODnoiseDistPtr;
-	}
+	delete chirpDistPtr;
+	delete TODDistPtr;
+	delete FODDistPtr;
+	delete fifthODDistPtr;
 }
 
+float Params::getDelay(void){return (*delays_distributionPtr)(rng);}
+float Params::getAmp(void){return (*laser_distributionPtr)(rng);}
 
-/* =========== chirp interfaces ============= */
-
-void Params::initchirp(float second, float third, float fourth = float(0), float fifth = float(0))
+Params & Params::initChirp(float second,float third,float fourth,float fifth)
 {
-	chirpvec[0] = second;
-	chirpvec[1] = third;
-	chirpvec[2] = fourth;
-	chirpvec[3] = fifth;
+	chirpDistPtr = new std::uniform_real_distribution<float>( -second, second );
+	TODDistPtr = new std::uniform_real_distribution<float>( -third, third );
+	FODDistPtr = new std::uniform_real_distribution<float>( -fourth, fourth );
+	fifthODDistPtr = new std::uniform_real_distribution<float>( -fifth, fifth );
+	return *this;
 }
 
-void Params::initchirpnoise(float second,float third,float fourth = float(0),float fifth = float(0))
-{
-	chirpnoiseDistPtr = new std::normal_distribution<float>( chirpvec[0], second );
-	TODnoiseDistPtr = new std::normal_distribution<float>( chirpvec[1], third );
-	FODnoiseDistPtr = new std::normal_distribution<float>( chirpvec[2], fourth );
-	fifthODnoiseDistPtr = new std::normal_distribution<float>( chirpvec[3], fifth );
-}
-
-std::vector<float> & Params::getchirpnoise(void)
+std::vector<float> & Params::getChirp(void)
 {
 	std::vector<float> v(4,float(0));
-	v[0] = (*chirpnoiseDistPtr)(rng);
-	v[1] = (*TODnoiseDistPtr)(rng);
-	v[2] = (*FODnoiseDistPtr)(rng);
-	v[3] = (*fifthODnoiseDistPtr)(rng);
+	v[0] = (*chirpDistPtr)(rng);
+	v[1] = (*TODDistPtr)(rng);
+	v[2] = (*FODDistPtr)(rng);
+	v[3] = (*fifthODDistPtr)(rng);
 	return v;
-
 }
 
-
+Params & Params::setnulims(float low, float high)
+{
+	nu_low = low;
+	nu_high = high;
+	return *this;
+}
