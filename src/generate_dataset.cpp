@@ -35,7 +35,7 @@ int main(int argc, char* argv[])
 	float delays_std = float(atof(std::getenv("delays_std")));
 	float amp_mean = float(atof(std::getenv("amp_mean")));
 	float amp_std = float(atof(std::getenv("amp_std")));
-	std::cout << "initializing params" << std::endl << std::flush;
+
 	std::cout << "filebase in main() is " << filebase << std::endl << std::flush;
 	Params params(filebase,delays_mean,delays_std,amp_mean,amp_std);
 	params.lambda_0(atof( std::getenv("lambda_0") ));
@@ -43,7 +43,6 @@ int main(int argc, char* argv[])
 	params.lambda_onoff( atof( std::getenv("lambda_onoff") ));
 	params.setTspan((atof( std::getenv("tspan") ) )/fsPau<float>());
 
-	std::cerr << "made it here\n" << std::flush;
 	float second = float( atof( getenv("chirp") ) );
 	float third = float( atof( getenv("TOD") ) );
 	float fourth = float( atof( getenv("FOD") ) );
@@ -60,7 +59,6 @@ int main(int argc, char* argv[])
 
 
 	std::cout << "initializing masterpulse and masterplans" << std::endl << std::flush;
-
 	PulseFreq masterpulse(params);
 
 	fftw_plan forward;
@@ -69,14 +67,12 @@ int main(int argc, char* argv[])
 	fftw_plan plan_hc2r;
 	fftw_plan plan_r2hc_2x;
 	fftw_plan plan_hc2r_2x;
-	masterpulse.setmasterplans(&forward,&backward);
-	masterpulse.setancillaryplans(& plan_r2hc,& plan_hc2r,& plan_r2hc_2x,& plan_hc2r_2x);
+	masterpulse.setmasterplans(&forward,&backward).setmasterancillaryplans(& plan_r2hc,& plan_hc2r,& plan_r2hc_2x,& plan_hc2r_2x);
 
 	std::time_t tstop = std::time(nullptr);
 	std::cout << "\tIt has taken " << (tstop-tstart) << " s so far for initializing masterpulse and building fftw plans\n" << std::flush;
 
 	// Setup the shared pulse arrays
-	std::vector< PulseFreq > pulsearray(params.getNpulses(),masterpulse);
 	std::vector<float> runtimes(params.getNpulses(),0); // for benchmarking the processors
 
 #pragma omp parallel num_threads(nthreads) shared(masterpulse) private(params)
@@ -86,22 +82,29 @@ int main(int argc, char* argv[])
 		// http://pages.tacc.utexas.edu/~eijkhout/pcse/html/omp-data.html
 
 		size_t tid = omp_get_thread_num();
-		std::cout << "in parallel region 1, tid = " << (int)tid << std::endl;
+#pragma omp master
+			{
+				std::cout << "\t\t############ ending parallel region 1 ###########\n" << std::flush;
+			}
+		PulseFreq pulse(params);
+		/*
+		pulse.setmasterplans(&forward,&backward)
+			.setmasterancillaryplans(& plan_r2hc,& plan_hc2r,& plan_r2hc_2x,& plan_hc2r_2x);
+			*/
+		pulse.setplans(masterpulse)
+			.setancillaryplans(masterpulse);
 
 #pragma omp for schedule(dynamic)
 		for (size_t n=0;n<params.getNpulses();++n)	{ // outermost loop for npulses to produce //
 			std::time_t runstart = std::time(nullptr);
-			std::cerr << "\tinside the parallel region 1 for pulses loop n = " << n << " in thread " << tid << "\n" << std::flush;
+			std::cerr << "\tinside the parallel region 1 for pulses loop n = " << n << " in thread " << (int)tid << "\n" << std::flush;
 
-			PulseFreq pulse(masterpulse);
-			pulse.addchirp(params.getChirp());						
-			pulse.scale(params.getAmp());
-			float t0 = params.getDelay();
-			pulse.delay(t0);
+			pulse.addchirp(params.getChirp())
+				.scale(params.getAmp())
+				.delay(params.getDelay());
 
-			//DebugOps::pushout(std::string("Running pulse " + std::to_string(n) + " for t0 = " + std::to_string(t0) + " in threaded for loop, thread " + std::to_string(tid)));
+			//DebugOps::pushout(std::string("Running pulse " + std::to_string(n) + " for t0 = " + std::to_string(params.getDelay()) + " in threaded for loop, thread " + std::to_string(tid)));
 
-			pulsearray[n] = pulse;
 			std::time_t runstop = std::time(nullptr);
 			runtimes[n] = float(runstop - runstart);
 			} // outermost loop for npulses to produce //
@@ -113,17 +116,22 @@ int main(int argc, char* argv[])
 	} // end parallel region 1
 
 	std::cout << "\n ---- just left parallel region ----" << std::endl;
+	std::cout << "\n ---------- runtimes are -----------" << std::endl;
+	for (size_t i=0;i<runtimes.size();i++)
+		std::cout << runtimes[i] << "\t";
+	std::cout << std::endl;
+
 	std::cout << "params lambda_0: " << params.lambda_0() << std::endl;
+	std::cerr << "Destroying plans" << std::endl << std::flush;
 	fftw_destroy_plan(forward);
 	fftw_destroy_plan(backward);
 	forward = backward = NULL;
 
-	tstop = std::time(nullptr);
-	tstop -= tstart;
+	std::time_t allstop = std::time(nullptr);
 	std::cout << "\t\t======================================\n"
 		<< "\t\t======== generate pulses stopped =======\n"
-		<< "\t\t===== " << std::asctime(std::localtime(&tstop)) 
-		<< "\t\t===== in " << tstop << " s ====\n"
+		<< "\t\t===== " << std::asctime(std::localtime(&allstop)) 
+		<< "\t\t===== in " << float(allstop-tstart) << " s ====\n"
 		<< "\t\t======================================\n" << std::flush;
 	/*
 	std::string timesfilename = params.filebase() + "runtimes.log";

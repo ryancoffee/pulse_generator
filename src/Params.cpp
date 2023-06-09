@@ -3,7 +3,7 @@
 Params::Params(std::string filebase,float delays_mean,float delays_std,float amp_mean,float amp_std)
 	:fbase(filebase)
 {
-	std::cerr << "Constructor Params()" << std::endl;
+	//std::cerr << "Constructor Params()" << std::endl;
 
 	delays_distributionPtr = new std::uniform_real_distribution<float>(
 			delays_mean - delays_std,
@@ -24,6 +24,7 @@ Params::~Params(void)
 	delete TODDistPtr;
 	delete FODDistPtr;
 	delete fifthODDistPtr;
+	std::cerr << "Leaving Params::~Params()\n" << std::flush;
 }
 
 float Params::getDelay(void){return (*delays_distributionPtr)(rng);}

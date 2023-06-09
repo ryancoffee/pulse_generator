@@ -16,6 +16,52 @@
 using namespace Constants;
 using namespace DataOps;
 
+
+/*
+ *
+ *
+ *
+ *  PulseTime
+ *
+ *
+ *
+ */
+
+
+PulseTime & PulseTime::setstrength(const float in)
+{
+  strength = in * auenergy<float>()/Eh<float>() * std::pow(aufor10PW<float>(),int(2));
+  return *this;
+}
+
+PulseTime & PulseTime::setwidth(const float in)
+{
+  Ctau = in * Constants::root_pi<float>()/ Constants::fsPau<float>() / 2.0;
+  return *this;
+}
+
+PulseTime & PulseTime::sett0(const float in)
+{
+  t0 = in / fsPau<float>();
+  return *this;
+}
+
+
+
+
+
+/*
+ *
+ *
+ *
+ *
+ * PulseFreq
+ *
+ *
+ *
+ *
+ */
+
 PulseFreq::PulseFreq(Params &params)
 :omega_center(params.omega0())
 ,omega_width(params.omega_width())
@@ -35,7 +81,6 @@ PulseFreq::PulseFreq(Params &params)
 ,r_vec_2x(NULL)
 ,hc_vec_2xFT(NULL)
 {
-	std::cout << "In constructor PulseFreq()" << std::endl;
 	i_low =  (size_t)(params.nu_low * twopi<float>()*fsPau<float>()/domega);
 	i_high =  (size_t)(params.nu_high * twopi<float>()*fsPau<float>()/domega);
 	samples = (( (size_t)(2.0 * omega_high / domega))/sampleround + 1 ) *sampleround;// dt ~ .1fs, Dt ~ 10000fs, dom = 2*pi/1e4, omhigh = 2*pi/.1fs, samples = omhigh/dom*2
@@ -53,7 +98,7 @@ PulseFreq::PulseFreq(Params &params)
 	m_noisescale = params.noisescale;
 	m_sampleinterval = params.sampleinterval;
 	m_saturate = params.saturate;
-	std::cout << "exiting constructor PulseFreq()" << std::endl;
+	//std::cout << "exiting constructor PulseFreq()" << std::endl;
 }
 
 PulseFreq::PulseFreq(const PulseFreq &rhs) // deep-ish copy constructor
@@ -75,7 +120,7 @@ PulseFreq::PulseFreq(const PulseFreq &rhs) // deep-ish copy constructor
 	,m_lamsamples(rhs.m_lamsamples)
 	,sampleround(1000)
 {
-	//std::cerr << "\t\t\t+++++  Copy constructor of PulseFreq::PulseFreq(PulseFreq &rhs)\t\tsamples = " << samples << "\n" << std::flush;
+	std::cerr << "\t\t\t+++++  Copy constructor of PulseFreq::PulseFreq(PulseFreq &rhs)\t\tsamples = " << samples << "\n" << std::flush;
 	DataOps::clone(omega,rhs.omega);
 	DataOps::clone(time,rhs.time);
 
@@ -156,21 +201,24 @@ PulseFreq & PulseFreq::operator=(const PulseFreq & rhs) // shallow-ish assignmen
 
 PulseFreq::~PulseFreq(void){
 	killvectors();
+	std::cerr << "Leaving PulseFreq::~PulseFreq()\n" << std::flush;
 }
 
 
-void PulseFreq::rhophi2cvec(void)
+PulseFreq & PulseFreq::rhophi2cvec(void)
 {
 	for (size_t i=0;i<samples;i++){
 		cvec[i] = std::polar(rhovec[i],phivec[i]);
 	}
+	return *this;
 }
-void PulseFreq::cvec2rhophi(void)
+PulseFreq & PulseFreq::cvec2rhophi(void)
 {
 	for (size_t i=0;i<samples;i++){
 		rhovec[i] = std::abs(cvec[i]);
 		phivec[i] = std::arg(cvec[i]);
 	}
+	return *this;
 }
 
 PulseFreq & PulseFreq::operator+=(const PulseFreq &rhs){
@@ -296,26 +344,13 @@ bool PulseFreq::addrandomphase(void)
 }
 
 
-void PulseTime::setstrength(const float in)
-{
-  strength = in * auenergy<float>()/Eh<float>() * std::pow(aufor10PW<float>(),int(2));
-}
 
-void PulseTime::setwidth(const float in)
-{
-  Ctau = in * Constants::root_pi<float>()/ Constants::fsPau<float>() / 2.0;
-}
-
-void PulseTime::sett0(const float in)
-{
-  t0 = in / fsPau<float>();
-}
-
-void PulseFreq::attenuate(float attenfactor){
+PulseFreq & PulseFreq::attenuate(float attenfactor){
 	rhovec *= attenfactor;
 	rhophi2cvec();
+	return *this;
 }
-void PulseFreq::phase(float phasein){ // expects delay in units of pi , i.e. 1.0 = pi phase flip 
+PulseFreq & PulseFreq::phase(float phasein){ // expects delay in units of pi , i.e. 1.0 = pi phase flip 
 	if(intime){
 		fft_tofreq();
 	}
@@ -324,8 +359,9 @@ void PulseFreq::phase(float phasein){ // expects delay in units of pi , i.e. 1.0
 	if(intime){
 		fft_totime();
 	}
+	return *this;
 }
-void PulseFreq::delay(float delayin){ // expects delay in fs
+PulseFreq & PulseFreq::delay(float delayin){ // expects delay in fs
 	if(intime){
 		fft_tofreq();
 	}
@@ -336,6 +372,7 @@ void PulseFreq::delay(float delayin){ // expects delay in fs
 	if(intime){
 		fft_totime();
 	}
+	return *this;
 }
 
 
@@ -509,14 +546,14 @@ void PulseFreq::printtime(std::ofstream * outfile){
 } 
 
 
-void PulseFreq::buildvectors(const size_t s){
+PulseFreq & PulseFreq::buildvectors(const size_t s){
 	//std::cerr << "allocating with fftw_malloc with samples = " << samples << std::endl << std::flush;
 	cvec = (std::complex<float> *) fftw_malloc(sizeof(std::complex<float>) * size_t(s));
         std::fill(cvec,cvec + samples,std::complex<float>(0));
 	r_vec = (double *) fftw_malloc(sizeof(double) * s);
         std::fill(r_vec,r_vec + s,double(0));
 	//std::cerr << "\t\t...allocated with fftw_malloc with samples = " << samples << std::endl << std::flush;
-	hc_vecFT = (double *) fftw_malloc(sizeof(float) * size_t(s));
+	hc_vecFT = (double *) fftw_malloc(sizeof(double) * size_t(s));
         std::fill(hc_vecFT,hc_vecFT + s,double(0));
 	//std::cerr << "allocating with fftw_malloc with samples = " << (2*samples) << std::endl << std::flush;
 	r_vec_2x = (double *) fftw_malloc(sizeof(double) * s * 2);
@@ -541,11 +578,6 @@ void PulseFreq::buildvectors(const size_t s){
 	stopind = (unsigned)((omega_center+(omega_width/2.0))/domega);
 	onwidth = (unsigned)(omega_onwidth/domega); // 2.0)/domega);//  /10.0)/domega);// sin^2 goes from0..1 in 0..pi/2
 	offwidth = (unsigned)(omega_offwidth/domega); // 2.0)/domega);//  /10.0)/domega);// sin^2 goes from0..1 in 0..pi/2
-	/*
-	std::vector<unsigned> temp(4);
-	temp = {startind,onwidth,stopind,offwidth};
-	std::cerr << "(startind,onwidth,stopind,offwidth) = ( " << temp << " )\n" << std::flush;
-	*/
 
 	for (unsigned i = 1; i<startind;i++){
 		omega[i] = domega*i;
@@ -563,7 +595,6 @@ void PulseFreq::buildvectors(const size_t s){
 		rhovec[s-i] = rising(i);
 		cvec[s-i] = std::polar(rhovec[s-i],phivec[s-i]);
 	}
-	//std::cerr << "Made it to HERE HERE HERE with startind+onwidth = "  << (startind+onwidth) << " and stopind-offwidth = " << (stopind-offwidth) << "\n" << std::flush;
 	for (unsigned i = startind+onwidth;i<stopind-offwidth; i++){
 		omega[i] = domega*i;
 		time[i] = dtime*i;
@@ -574,7 +605,6 @@ void PulseFreq::buildvectors(const size_t s){
 		rhovec[s-i] = 1.0;
 		cvec[s-i] = std::polar(rhovec[s-i],phivec[s-i]);
 	}
-	//std::cerr << "Trying to make it to HERE NOW\n" << std::flush;
 	for (unsigned i = stopind-offwidth;i<stopind; i++){
 		omega[i] = domega*i;
 		time[i] = dtime*i;
@@ -591,24 +621,33 @@ void PulseFreq::buildvectors(const size_t s){
 		omega[s-i] = -domega*i;
 		time[s-i] = -dtime*i;
 	}
-	
+	return *this;	
 }
-void PulseFreq::killvectors(void){
-	fftw_free(cvec);
-	fftw_free(r_vec);
-	fftw_free(hc_vecFT);
-	fftw_free(r_vec_2x);
-	fftw_free(hc_vec_2xFT);
+PulseFreq & PulseFreq::killvectors(void){
+	if (cvec != NULL)
+		fftw_free(cvec);
+	if (r_vec != NULL)
+		fftw_free(r_vec);
+	if (hc_vecFT != NULL)
+		fftw_free(hc_vecFT);
+	if (r_vec_2x != NULL)
+		fftw_free(r_vec_2x);
+	if (hc_vec_2xFT != NULL)
+		fftw_free(hc_vec_2xFT);
 	cvec = NULL;
 	r_vec = hc_vecFT = r_vec_2x = hc_vec_2xFT = NULL;
+	return *this;
 }
 
-void PulseFreq::setplans(const PulseFreq & rhs)
+PulseFreq & PulseFreq::setplans(const PulseFreq & rhs)
 {
+	std::cerr << "in PulseFreq::setplans() FTplan_forwardPtr.use_count() = " << FTplan_forwardPtr.use_count() << std::endl << std::flush;
+	//assert(FTplan_forwardPtr.use_count()>0 && FTplan_backwardPtr.use_count()>0);
 	FTplan_forwardPtr = rhs.FTplan_forwardPtr;
 	FTplan_backwardPtr = rhs.FTplan_backwardPtr;
+	return *this;
 }
-void PulseFreq::setmasterplans(fftw_plan * const forward,fftw_plan * const backward)
+PulseFreq & PulseFreq::setmasterplans(fftw_plan * const forward,fftw_plan * const backward)
 {
 	assert(FTplan_forwardPtr.use_count()==0 && FTplan_backwardPtr.use_count()==0);
 	*forward = fftw_plan_dft_1d(samples, 
@@ -621,8 +660,23 @@ void PulseFreq::setmasterplans(fftw_plan * const forward,fftw_plan * const backw
 			FFTW_BACKWARD, FFTW_ESTIMATE);
 	FTplan_forwardPtr = std::make_shared<fftw_plan> (*forward);
 	FTplan_backwardPtr = std::make_shared<fftw_plan> (*backward);
+	return *this;
 }
-void PulseFreq::setancillaryplans(fftw_plan * const r2hc,fftw_plan * const hc2r,fftw_plan * const r2hc_2x,fftw_plan * const hc2r_2x)
+PulseFreq & PulseFreq::setancillaryplans(const PulseFreq & rhs)
+{
+	/*
+	 assert(FTplan_r2hcPtr.use_count()>0
+			&& FTplan_hc2rPtr.use_count()>0
+			&& FTplan_r2hc_2xPtr.use_count()>0
+			&& FTplan_hc2r_2xPtr.use_count()>0);
+	*/
+	FTplan_r2hcPtr = rhs.FTplan_r2hcPtr;
+	FTplan_hc2rPtr = rhs.FTplan_hc2rPtr;
+	FTplan_r2hc_2xPtr = rhs.FTplan_r2hc_2xPtr;
+	FTplan_hc2r_2xPtr = rhs.FTplan_hc2r_2xPtr;
+	return *this;
+}
+PulseFreq & PulseFreq::setmasterancillaryplans(fftw_plan * const r2hc,fftw_plan * const hc2r,fftw_plan * const r2hc_2x,fftw_plan * const hc2r_2x)
 {
 
 	assert(FTplan_r2hcPtr.use_count()==0
@@ -657,5 +711,5 @@ void PulseFreq::setancillaryplans(fftw_plan * const r2hc,fftw_plan * const hc2r,
 	FTplan_hc2rPtr = std::make_shared<fftw_plan> (*hc2r);
 	FTplan_r2hc_2xPtr = std::make_shared<fftw_plan> (*r2hc_2x);
 	FTplan_hc2r_2xPtr = std::make_shared<fftw_plan> (*hc2r_2x);
-
+	return *this;
 }
