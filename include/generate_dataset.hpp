@@ -14,6 +14,11 @@
 #include <algorithm>
 #include <vector>
 
+#include <hdf5.h>
+#include <H5Cpp.h>
+#include <H5Attribute.h>
+
+
 // my includes
 #include "Params.hpp"
 #include "Constants.hpp"

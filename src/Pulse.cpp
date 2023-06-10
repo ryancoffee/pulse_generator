@@ -534,6 +534,16 @@ void PulseFreq::printwavelength(std::ofstream * outfile,const float *delay){
 	(*outfile) << "\n";
 }
 
+PulseFreq & PulseFreq::filltime(const size_t n, std::vector< std::vector < float > > & data)
+{
+	if (infreq)
+		fft_totime();	
+	assert(data[n].size()==samples);
+	for (size_t i=0;i<samples;i++)
+		data[n][i] = float(cvec[i].real());
+	return *this;
+}
+
 void PulseFreq::printtime(std::ofstream * outfile){
 	(*outfile) << ("#time\treal\timag\n");
 	for (unsigned i = samples/2;i<samples;i++){

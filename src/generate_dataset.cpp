@@ -4,6 +4,7 @@
 #include <complex>
 #include <memory>
 #include <fftw3.h>
+#include <H5Cpp.h>
 
 #include <vector>
 #include <random>
@@ -15,10 +16,12 @@
 #include <cstdint> // for writing as an int32_t and int16_t
 
 using namespace Constants;
+H5::FloatType h5float( H5::PredType::NATIVE_FLOAT );
 
 /* Here's main */
 int main(int argc, char* argv[])
 {
+
 	std::time_t tstart = std::time(nullptr);
 	std::cout << "\t\t======================================\n"
 		<< "\t\t======= gen pulses started ========\n"
@@ -75,7 +78,12 @@ int main(int argc, char* argv[])
 	// Setup the shared pulse arrays
 	std::vector<float> runtimes(params.getNpulses(),0); // for benchmarking the processors
 
-#pragma omp parallel num_threads(nthreads) shared(masterpulse) private(params)
+	std::vector< std::vector< float > > waves; 
+	for (size_t i=0;i<params.getNpulses();i++){
+		waves.push_back(std::vector< float >(masterpulse.getsamples(),0.));
+	}
+
+#pragma omp parallel num_threads(nthreads) shared(masterpulse,waves) private(params)
 	{ // begin parallel region 1
 
 		// all non-shared objects must be created inside the parallel section for default is shared if defined outside
@@ -87,10 +95,6 @@ int main(int argc, char* argv[])
 				std::cout << "\t\t############ ending parallel region 1 ###########\n" << std::flush;
 			}
 		PulseFreq pulse(params);
-		/*
-		pulse.setmasterplans(&forward,&backward)
-			.setmasterancillaryplans(& plan_r2hc,& plan_hc2r,& plan_r2hc_2x,& plan_hc2r_2x);
-			*/
 		pulse.setplans(masterpulse)
 			.setancillaryplans(masterpulse);
 
@@ -103,7 +107,7 @@ int main(int argc, char* argv[])
 				.scale(params.getAmp())
 				.delay(params.getDelay());
 
-			//DebugOps::pushout(std::string("Running pulse " + std::to_string(n) + " for t0 = " + std::to_string(params.getDelay()) + " in threaded for loop, thread " + std::to_string(tid)));
+			pulse.fft_totime().filltime(n,waves);
 
 			std::time_t runstop = std::time(nullptr);
 			runtimes[n] = float(runstop - runstart);
@@ -114,6 +118,7 @@ int main(int argc, char* argv[])
 				std::cout << "\t\t############ ending parallel region 1 ###########\n" << std::flush;
 			}
 	} // end parallel region 1
+
 
 	std::cout << "\n ---- just left parallel region ----" << std::endl;
 	std::cout << "\n ---------- runtimes are -----------" << std::endl;
@@ -126,6 +131,53 @@ int main(int argc, char* argv[])
 	fftw_destroy_plan(forward);
 	fftw_destroy_plan(backward);
 	forward = backward = NULL;
+
+
+
+	std::cout << "\n ---- Writing H5 file ----" << std::endl;
+
+	H5::IntType h5uint16( H5::PredType::NATIVE_USHORT );
+	h5uint16.setOrder( H5T_ORDER_LE );
+	H5::IntType h5int16( H5::PredType::NATIVE_SHORT );
+	h5int16.setOrder( H5T_ORDER_LE );
+	H5::IntType h5uint32( H5::PredType::NATIVE_UINT );
+	h5uint32.setOrder( H5T_ORDER_LE );
+	H5::IntType h5int32( H5::PredType::NATIVE_INT );
+	h5int32.setOrder( H5T_ORDER_LE );
+	H5::StrType h5string(0, H5T_VARIABLE);
+
+
+	std::tm * local_time = std::localtime(nullptr);
+
+	std::string fname(params.filebase());
+        std::stringstream tstartstream,tstopstream;
+        std::stringstream ss;
+        ss      << "-" << local_time->tm_year + 1900
+                << "-" << local_time->tm_mon + 1
+                << "-" << local_time->tm_mday
+                << "-h"<< local_time->tm_hour
+                << "-m"<< local_time->tm_min
+                << ".h5";
+        fname += ss.str();
+        std::cout << "outfile = " << fname << std::endl;
+       	H5::H5File * hfilePtr = new H5::H5File ( fname , H5F_ACC_TRUNC );
+        H5::Group * sansPtr = new H5::Group( hfilePtr->createGroup( "sans" )); // sans noise
+        H5::Group * avecPtr = new H5::Group( hfilePtr->createGroup( "avec" )); // avec noise
+
+	const uint8_t rank(1);
+	hsize_t dims[1] = {waves.back().size()};
+	for (size_t n=0;n<waves.size();n++){
+		std::string pulsename = "pulse_" + std::to_string((int)n) + "_real";
+		H5::DataSpace * dataspace = new H5::DataSpace( rank , dims );
+		H5::DataSet * datasetPtr = new H5::DataSet( sansPtr->createDataSet( pulsename, h5float, *dataspace ) );
+		datasetPtr->write( waves[n].data(), h5float);
+
+        	delete datasetPtr;
+        	delete dataspace;
+	}
+        delete sansPtr;
+        delete avecPtr;
+        delete hfilePtr;
 
 	std::time_t allstop = std::time(nullptr);
 	std::cout << "\t\t======================================\n"

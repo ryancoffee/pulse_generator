@@ -21,6 +21,8 @@
 #include <DataOps.hpp>
 #include <Params.hpp>
 
+
+
 // my definitions
 using namespace Constants;
 
@@ -147,6 +149,8 @@ class PulseFreq
 			intime=false;
 			return *this;
 		}
+
+		PulseFreq & filltime(const size_t n, std::vector< std::vector < float > > & data);
 
 		inline bool is_intime(void){return intime;}
 		inline bool is_infreq(void){return infreq;}
