@@ -73,7 +73,6 @@ PulseFreq::PulseFreq(Params &params)
 ,m_sampleinterval(2)
 ,m_saturate(1<<12)
 ,m_gain(1)
-//,m_gain(1000000)
 ,m_lamsamples(1<<10)
 ,sampleround(1000)
 ,cvec(NULL)
@@ -372,6 +371,19 @@ PulseFreq & PulseFreq::phase(float phasein){ // expects delay in units of pi , i
 	}
 	return *this;
 }
+PulseFreq & PulseFreq::setdelay(float delayin){ // expects delay in fs
+	if(intime){
+		fft_tofreq();
+	}
+	for (unsigned i=0;i<samples;i++){
+		phivec[i] = omega[i]*(double)delayin/fsPau<double>();
+	}
+	rhophi2cvec();
+	if(intime){
+		fft_totime();
+	}
+	return *this;
+}
 PulseFreq & PulseFreq::delay(float delayin){ // expects delay in fs
 	if(intime){
 		fft_tofreq();
@@ -415,7 +427,7 @@ void PulseFreq::appendwavelength(std::ofstream * outfile)
 	for (size_t i=0;i<y.size();++i){
 		x[i] = C_nmPfs<float>()*2.0*pi<float>()*fsPau<float>()/omega[i_low+i];
 		//y[i] = std::pow(rhovec[i_low+i],int(2)) * 200000000000;
-		y[i] = std::min((float)(std::pow(rhovec[i_low+i],int(2))) * (float)m_gain,float(m_saturate));
+		y[i] = std::min((float)(std::pow(rhovec[i_low+i],int(2))),float(m_saturate));
 	}
 	float dlam = (x.front()-x.back())/float(m_lamsamples);
 	boost::math::interpolators::barycentric_rational<float> interpolant(x.data(), y.data(), y.size());
@@ -434,7 +446,7 @@ void PulseFreq::appendwavelength_deriv(std::ofstream * outfile)
 
 	for (size_t i=0;i<y.size();++i){
 		x[i] = C_nmPfs<float>()*2.0*pi<float>()*fsPau<float>()/omega[i_low+i];
-		y[i] = std::pow(rhovec[i_low+i],int(2)) * (float)m_gain;
+		y[i] = std::pow(rhovec[i_low+i],int(2));
 	}
 	float dlam = (x.front()-x.back())/float(m_lamsamples);
 	boost::math::interpolators::barycentric_rational<float> interpolant(x.data(), y.data(), y.size());
@@ -463,7 +475,7 @@ void PulseFreq::appendwavelength_bin(std::ofstream * outfile)
 	for (size_t i=0;i<y.size();++i){
 		x[i] = C_nmPfs<float>()*2.0*pi<float>()*fsPau<float>()/omega[i_low+i];
 		//y[i] = std::pow(rhovec[i_low+i],int(2)) * 200000000000;
-		y[i] = std::min((float)std::pow(rhovec[i_low+i],int(2)) * (float)m_gain,float(m_saturate));
+		y[i] = std::min((float)std::pow(rhovec[i_low+i],int(2)),float(m_saturate));
 	}
 	float dlam = (x.front()-x.back())/float(m_lamsamples);
 	boost::math::interpolators::barycentric_rational<float> interpolant(x.data(), y.data(), y.size());
@@ -474,7 +486,7 @@ void PulseFreq::appendwavelength_bin(std::ofstream * outfile)
 }
 void PulseFreq::appendfrequency(std::ofstream * outfile){
         for (unsigned i = i_low;i<i_high;i+=m_sampleinterval){ 
-		uint16_t val = std::min(uint16_t(rhovec[i] * m_gain),uint16_t(m_saturate));
+		uint16_t val = std::min(uint16_t(rhovec[i]),uint16_t(m_saturate));
        		(*outfile) << std::pow(val,int(2)) << "\t";
         }
 	(*outfile) << std::endl;
@@ -576,6 +588,59 @@ void PulseFreq::printtime(std::ofstream * outfile){
 } 
 
 
+PulseFreq & PulseFreq::rebuildvectors(float newgain){
+	m_gain = newgain;
+
+	startind = (unsigned)((omega_center-(omega_width/2.0))/domega);
+	stopind = (unsigned)((omega_center+(omega_width/2.0))/domega);
+	onwidth = (unsigned)(omega_onwidth/domega); // 2.0)/domega);//  /10.0)/domega);// sin^2 goes from0..1 in 0..pi/2
+	offwidth = (unsigned)(omega_offwidth/domega); // 2.0)/domega);//  /10.0)/domega);// sin^2 goes from0..1 in 0..pi/2
+
+	for (unsigned i = 1; i<startind;i++){
+		omega[i] = domega*i;
+		time[i] = dtime*i;
+		omega[samples-i] = -domega*i;
+		time[samples-i] = -dtime*i;
+	}
+	for (unsigned i = startind;i<startind+onwidth; i++){
+		omega[i] = domega*i;
+		time[i] = dtime*i;
+		rhovec[i] = m_gain*rising(i);
+		cvec[i] = std::polar(rhovec[i],phivec[i]);
+		omega[samples-i] = -domega*(float)i;
+		time[samples-i] = -dtime*(float)i;
+		rhovec[samples-i] = m_gain*rising(i);
+		cvec[samples-i] = std::polar(rhovec[samples-i],phivec[samples-i]);
+	}
+	for (unsigned i = startind+onwidth;i<stopind-offwidth; i++){
+		omega[i] = domega*i;
+		time[i] = dtime*i;
+		rhovec[i] = m_gain; 
+		cvec[i] = std::polar(rhovec[i],phivec[i]);
+		omega[samples-i] = -domega*(float)i;
+		time[samples-i] = -dtime*(float)i;
+		rhovec[samples-i] = m_gain;
+		cvec[samples-i] = std::polar(rhovec[samples-i],phivec[samples-i]);
+	}
+	for (unsigned i = stopind-offwidth;i<stopind; i++){
+		omega[i] = domega*i;
+		time[i] = dtime*i;
+		rhovec[i] = m_gain*falling(i);
+		cvec[i] = std::polar(rhovec[i],phivec[i]);
+		omega[samples-i] = -domega*i;
+		time[samples-i] = -dtime*i;
+		rhovec[samples-i] = m_gain*falling(i);
+		cvec[samples - i] = std::polar(rhovec[samples - i],phivec[samples - i]);
+	}
+	for (unsigned i = stopind;i<samples/2; i++){
+		omega[i] = domega*i;
+		time[i] = dtime*i;
+		omega[samples-i] = -domega*i;
+		time[samples-i] = -dtime*i;
+	}
+	return *this;
+}
+
 PulseFreq & PulseFreq::buildvectors(const size_t s){
 	//std::cerr << "allocating with fftw_malloc with samples = " << samples << std::endl << std::flush;
 	cvec = (std::complex<double> *) fftw_malloc(sizeof(std::complex<double>) * size_t(s));
@@ -598,6 +663,7 @@ PulseFreq & PulseFreq::buildvectors(const size_t s){
 	modphase.resize(s,0.0);
 	omega.resize(s);
 	time.resize(s);
+	samples = s;
 
 	omega[0] = 0.0;
 	time[0] = 0.0;
@@ -609,7 +675,6 @@ PulseFreq & PulseFreq::buildvectors(const size_t s){
 	onwidth = (unsigned)(omega_onwidth/domega); // 2.0)/domega);//  /10.0)/domega);// sin^2 goes from0..1 in 0..pi/2
 	offwidth = (unsigned)(omega_offwidth/domega); // 2.0)/domega);//  /10.0)/domega);// sin^2 goes from0..1 in 0..pi/2
 
-
 	for (unsigned i = 1; i<startind;i++){
 		omega[i] = domega*i;
 		time[i] = dtime*i;
@@ -619,31 +684,31 @@ PulseFreq & PulseFreq::buildvectors(const size_t s){
 	for (unsigned i = startind;i<startind+onwidth; i++){
 		omega[i] = domega*i;
 		time[i] = dtime*i;
-		rhovec[i] = float(m_gain)*rising(i);
+		rhovec[i] = m_gain*rising(i);
 		cvec[i] = std::polar(rhovec[i],phivec[i]);
 		omega[s-i] = -domega*(float)i;
 		time[s-i] = -dtime*(float)i;
-		rhovec[s-i] = float(m_gain)*rising(i);
+		rhovec[s-i] = m_gain*rising(i);
 		cvec[s-i] = std::polar(rhovec[s-i],phivec[s-i]);
 	}
 	for (unsigned i = startind+onwidth;i<stopind-offwidth; i++){
 		omega[i] = domega*i;
 		time[i] = dtime*i;
-		rhovec[i] = float(m_gain); 
+		rhovec[i] = m_gain; 
 		cvec[i] = std::polar(rhovec[i],phivec[i]);
 		omega[s-i] = -domega*(float)i;
 		time[s-i] = -dtime*(float)i;
-		rhovec[s-i] = float(m_gain);
+		rhovec[s-i] = m_gain;
 		cvec[s-i] = std::polar(rhovec[s-i],phivec[s-i]);
 	}
 	for (unsigned i = stopind-offwidth;i<stopind; i++){
 		omega[i] = domega*i;
 		time[i] = dtime*i;
-		rhovec[i] = float(m_gain)*falling(i);
+		rhovec[i] = m_gain*falling(i);
 		cvec[i] = std::polar(rhovec[i],phivec[i]);
 		omega[s-i] = -domega*i;
 		time[s-i] = -dtime*i;
-		rhovec[s-i] = float(m_gain)*falling(i);
+		rhovec[s-i] = m_gain*falling(i);
 		cvec[s- i] = std::polar(rhovec[s- i],phivec[s- i]);
 	}
 	for (unsigned i = stopind;i<s/2; i++){
@@ -746,3 +811,43 @@ PulseFreq & PulseFreq::setmasterancillaryplans(fftw_plan * r2hc,fftw_plan * hc2r
 	FTplan_hc2r_2xPtr = hc2r_2x;
 	return *this;
 }
+PulseFreq & PulseFreq::setGDDtoindex(const unsigned indx,const int omega_sign) {
+	phivec[indx] = omega_sign*phase_GDD*std::pow(omega[indx]-(float(omega_sign)*omega_center),int(2));
+	rhophi2cvec(indx);
+	return *this;
+}	
+PulseFreq & PulseFreq::setTODtoindex(const unsigned indx,const int omega_sign) {
+	phivec[indx] = omega_sign*phase_TOD*std::pow(omega[indx]-(float(omega_sign)*omega_center),int(3));
+	rhophi2cvec(indx);
+	return *this;
+}	
+PulseFreq &  PulseFreq::set4thtoindex(const unsigned indx,const int omega_sign) {
+	phivec[indx] = omega_sign*phase_4th*std::pow(omega[indx]-(float(omega_sign)*omega_center),int(4));
+	rhophi2cvec(indx);
+	return *this;
+}	
+PulseFreq &  PulseFreq::set5thtoindex(const unsigned indx,const int omega_sign) {
+	phivec[indx] = omega_sign*phase_5th*std::pow(omega[indx]-(float(omega_sign)*omega_center),int(5));
+	rhophi2cvec(indx);
+	return *this;
+}	
+PulseFreq & PulseFreq::addGDDtoindex(const unsigned indx,const int omega_sign) {
+	phivec[indx] += omega_sign*phase_GDD*std::pow(omega[indx]-(float(omega_sign)*omega_center),int(2));
+	rhophi2cvec(indx);
+	return *this;
+}	
+PulseFreq & PulseFreq::addTODtoindex(const unsigned indx,const int omega_sign) {
+	phivec[indx] += omega_sign*phase_TOD*std::pow(omega[indx]-(float(omega_sign)*omega_center),int(3));
+	rhophi2cvec(indx);
+	return *this;
+}	
+PulseFreq &  PulseFreq::add4thtoindex(const unsigned indx,const int omega_sign) {
+	phivec[indx] += omega_sign*phase_4th*std::pow(omega[indx]-(float(omega_sign)*omega_center),int(4));
+	rhophi2cvec(indx);
+	return *this;
+}	
+PulseFreq &  PulseFreq::add5thtoindex(const unsigned indx,const int omega_sign) {
+	phivec[indx] += omega_sign*phase_5th*std::pow(omega[indx]-(float(omega_sign)*omega_center),int(5));
+	rhophi2cvec(indx);
+	return *this;
+}	

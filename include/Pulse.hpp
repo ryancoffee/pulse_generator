@@ -196,6 +196,36 @@ class PulseFreq
 			return *this;
 		}
 
+		PulseFreq & setchirp(std::vector<float> & chirp_in) {
+			if (intime){
+				std::cerr << "whoops, trying to add phase in the time domain\n" << std::flush;
+				return *this;
+			}
+			assert(chirp_in.size()==4);
+			phase_GDD = chirp_in[0];
+			phase_TOD = chirp_in[1];
+			phase_4th = chirp_in[2];
+			phase_5th = chirp_in[3];
+			setGDDtoindex(0,1);
+			setGDDtoindex(samples/2,-1);
+			addTODtoindex(0,1);
+			addTODtoindex(samples/2,-1);
+			add4thtoindex(0,1);
+			add4thtoindex(samples/2,-1);
+			add5thtoindex(0,1);
+			add5thtoindex(samples/2,-1);
+			for (unsigned i = 1; i<samples/2;i++){
+				setGDDtoindex(i,1);
+				setGDDtoindex(samples-i,-1);
+				addTODtoindex(i,1);
+				addTODtoindex(samples-i,-1);
+				add4thtoindex(i,1);
+				add4thtoindex(samples-i,-1);
+				add5thtoindex(i,1);
+				add5thtoindex(samples-i,-1);
+			}
+			return *this;
+		}
 		PulseFreq & addchirp(std::vector<float> & chirp_in) {
 			if (intime){
 				std::cerr << "whoops, trying to add phase in the time domain\n" << std::flush;
@@ -230,7 +260,9 @@ class PulseFreq
 
 		PulseFreq & attenuate(float attenfactor);
 		PulseFreq & delay(float delayin); // expects delay in fs
-		PulseFreq & phase(float phasein); // expects delay in units of pi , i.e. 1.0 = pi phase flip 
+		PulseFreq & setdelay(float delayin); // expects delay in fs
+		PulseFreq & phase(float phasein); // expects phase in units of pi , i.e. 1.0 = pi phase flip 
+		PulseFreq & rebuildvectors(float newgain); // rebuilds to new amplitude and (eventually) center omega and rollonoff and spectral envelope.
 
 		int modulateamp_time(const std::vector<float> & modulation) {
 			if (infreq){
@@ -317,7 +349,7 @@ class PulseFreq
 		float m_noisescale;
 		size_t m_sampleinterval;
 		size_t m_lamsamples;
-		size_t m_gain;
+		float m_gain;
 		unsigned m_saturate;
 
 		size_t sampleround;
@@ -368,26 +400,15 @@ class PulseFreq
 		PulseFreq & factorization(void);
 		PulseFreq & killvectors(void);
 
-		PulseFreq & addGDDtoindex(const unsigned indx,const int omega_sign) {
-			phivec[indx] += omega_sign*phase_GDD*std::pow(omega[indx]-(float(omega_sign)*omega_center),int(2));
-			rhophi2cvec(indx);
-			return *this;
-		}	
-		PulseFreq & addTODtoindex(const unsigned indx,const int omega_sign) {
-			phivec[indx] += omega_sign*phase_TOD*std::pow(omega[indx]-(float(omega_sign)*omega_center),int(3));
-			rhophi2cvec(indx);
-			return *this;
-		}	
-		PulseFreq &  add4thtoindex(const unsigned indx,const int omega_sign) {
-			phivec[indx] += omega_sign*phase_4th*std::pow(omega[indx]-(float(omega_sign)*omega_center),int(4));
-			rhophi2cvec(indx);
-			return *this;
-		}	
-		PulseFreq &  add5thtoindex(const unsigned indx,const int omega_sign) {
-			phivec[indx] += omega_sign*phase_5th*std::pow(omega[indx]-(float(omega_sign)*omega_center),int(5));
-			rhophi2cvec(indx);
-			return *this;
-		}	
+		PulseFreq & setGDDtoindex(const unsigned indx,const int omega_sign);
+		PulseFreq & setTODtoindex(const unsigned indx,const int omega_sign);
+		PulseFreq &  set4thtoindex(const unsigned indx,const int omega_sign);
+		PulseFreq &  set5thtoindex(const unsigned indx,const int omega_sign);
+		PulseFreq & addGDDtoindex(const unsigned indx,const int omega_sign);
+		PulseFreq & addTODtoindex(const unsigned indx,const int omega_sign);
+		PulseFreq &  add4thtoindex(const unsigned indx,const int omega_sign);
+		PulseFreq &  add5thtoindex(const unsigned indx,const int omega_sign);
+
 
 		PulseFreq &  modampatindx(const unsigned indx,const std::vector<float> & modvec) {
 			rhovec[indx] *= modvec[indx];
