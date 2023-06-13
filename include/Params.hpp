@@ -18,18 +18,17 @@ class Params
 	Params(std::string filebase = "../data",float delays_mean=0.,float delays_std=50.,float amp_mean=1.,float amp_std=1.);
 	~Params();
 
-	size_t setNpulses(size_t in){npulses=in;return npulses;}
 	size_t getNpulses(void){return npulses;}
-	std::string filebase(std::string in){fbase=in;return fbase;}
+	Params & filebase(std::string in){fbase=in;return *this;}
 	std::string filebase(void){return fbase;}
-	float setTspan( float in) { tspan = in; return tspan;} 
+	Params & setTspan( float in) { tspan = in; return *this;} 
 	float getTspan( void) { return tspan;} 
 
-	float lambda_0(float in){ lam0 = in; return lam0;} 
+	Params & lambda_0(float in){ lam0 = in; return *this;} 
 	float lambda_0(void){return lam0;} 
-	float lambda_width(float in){ lamwidth = in; return lamwidth;}
+	Params & lambda_width(float in){ lamwidth = in; return *this;}
 	float lambda_width(void){return lamwidth;}
-	float lambda_onoff(float in ){ lamonoff = in; return lamonoff;} 
+	Params & lambda_onoff(float in ){ lamonoff = in; return *this;} 
 	float lambda_onoff(void){return lamonoff;} 
 	float omega_low(void){return twopi<float>()/(lam0+lamwidth/float(2))*C_nmPfs<float>()*fsPau<float>();}
 	float omega_high(void){return twopi<float>()/(lam0-lamwidth/float(2))*C_nmPfs<float>()*fsPau<float>();}
@@ -38,15 +37,17 @@ class Params
 	float omega0(void){ return (omega_high()+omega_low())/float(2);}
 
 	Params & initChirp(float second=0,float third=0,float fourth=0,float fifth=0);
-	std::vector<float> & getChirp(void);
+	std::vector<float> & getChirp(std::vector<float> & v);
 	float getAmp(void);
 	float getDelay(void);
 	Params & setnulims(float low, float high);
 	Params & set_lamsamples(size_t in){lamsamples = in; return *this;}
-	Params & set_gain(float in){ gain = in; return *this;} 
+	Params & set_gain(size_t in){ gain = in; return *this;} 
+	size_t get_gain(void){ return gain;} 
 	Params & set_noisescale(float in){ noisescale = in; return *this;}
 	Params & set_sampleinterval(size_t in){ sampleinterval = in; return *this;}
 	Params & set_saturate(uint16_t in){saturate = in; return *this;}
+	Params & setNpulses(size_t in){npulses=in;return *this;}
 
 	private:
 
@@ -55,7 +56,7 @@ class Params
 	float lam0,lamwidth,lamonoff;
 	float nu_low,nu_high;
 	size_t lamsamples;
-	float gain;
+	size_t gain;
 	size_t sampleinterval;
 	uint16_t saturate;
 	float noisescale;

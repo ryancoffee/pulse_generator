@@ -2,13 +2,13 @@
 
 starttime=$(date +%s);
 export HOSTNAME=$HOSTNAME:
-export nthreads=8;
+export nthreads=2;
+export npulses=8; #1024;
 export datadir="$HOME/pulsegendata/h5files/";
 mkdir -p $datadir;
 
-export fsWindow=100;
+export fsWindow=1000;
 
-export npulses=1024;
 
 export delays_mean=0;
 export delays_std=25;
@@ -19,7 +19,7 @@ export amp_std=1;
 export lambda_0=600; #in nm
 export lambda_width=200;
 export lambda_onoff=10;
-export tspan=10000; ##32768; ## really using this one
+export tspan=1000; ##32768; ## really using this one
 
 export noisescale=.005;
 
@@ -40,7 +40,8 @@ export TODnoise=0;
 export FODnoise=0;
 export fifthODnoise=0;
 
-export gain=200000000000; #20000000;
+export gain=1;
+#export gain=200000000000; #20000000;
 export saturate=40960;
 export lamsamples=1024;
 

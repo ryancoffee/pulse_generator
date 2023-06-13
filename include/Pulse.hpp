@@ -117,7 +117,7 @@ class PulseFreq
 		bool addrandomphase(void);
 
 		inline PulseFreq & scale(const float in){
-			DataOps::mul(cvec,in,samples);
+			DataOps::mul(cvec,(double)in,samples);
 			cvec2rhophi();
 			return *this;
 		}
@@ -131,8 +131,8 @@ class PulseFreq
 			if (intime)
 				std::cerr << "died here at fft_totime():\t domain() = " << domain() << "\n" << std::flush;
 			assert (infreq);
-			fftw_execute_dft(*FTplan_backwardPtr.get(),(fftw_complex*)cvec,(fftw_complex*)cvec);
-			DataOps::mul(cvec,(float)(1./std::sqrt(samples)),samples);
+			fftw_execute_dft(*FTplan_backwardPtr,(fftw_complex*)cvec,(fftw_complex*)cvec);
+			DataOps::mul(cvec,(double)(1./std::sqrt(samples)),samples);
 			cvec2rhophi();
 			infreq = false;
 			intime = true;
@@ -142,15 +142,16 @@ class PulseFreq
 			if (infreq)
 				std::cerr << "died here at fft_tofreq():\t domain() = " << domain() << "\n" << std::flush;
 			assert (intime);
-			fftw_execute_dft(*FTplan_forwardPtr.get(),(fftw_complex*)cvec,(fftw_complex*)cvec);
-			DataOps::mul(cvec,(float)(1./std::sqrt(samples)),samples);
+			fftw_execute_dft(*FTplan_forwardPtr,(fftw_complex*)cvec,(fftw_complex*)cvec);
+			DataOps::mul(cvec,(double)(1./std::sqrt(samples)),samples);
 			cvec2rhophi();
 			infreq=true;
 			intime=false;
 			return *this;
 		}
 
-		PulseFreq & filltime(const size_t n, std::vector< std::vector < float > > & data);
+		PulseFreq & filltime(std::vector < float > & data);
+		PulseFreq & filltime_envelope(std::vector < float > & data);
 
 		inline bool is_intime(void){return intime;}
 		inline bool is_infreq(void){return infreq;}
@@ -291,6 +292,7 @@ class PulseFreq
 			return 0;
 		}
 
+		void print_amp(void);
 		void print_amp(std::ofstream & outfile);
 		void print_phase(std::ofstream & outfile);
 		void print_phase_powerspectrum(std::ofstream & outfile);
@@ -315,7 +317,7 @@ class PulseFreq
 		float m_noisescale;
 		size_t m_sampleinterval;
 		size_t m_lamsamples;
-		unsigned long m_gain;
+		size_t m_gain;
 		unsigned m_saturate;
 
 		size_t sampleround;
@@ -330,27 +332,26 @@ class PulseFreq
 		float dtime,time_center,time_wdith;
 
 		// FFTW variables //
-		// fftw defining the plans before first instantiation, this allows only one forward and backward plan to be created 
-		std::shared_ptr<fftw_plan> FTplan_forwardPtr;
-		std::shared_ptr<fftw_plan> FTplan_backwardPtr;
-		std::shared_ptr<fftw_plan> FTplan_r2hcPtr;
-		std::shared_ptr<fftw_plan> FTplan_hc2rPtr;
-		std::shared_ptr<fftw_plan> FTplan_r2hc_2xPtr;
-		std::shared_ptr<fftw_plan> FTplan_hc2r_2xPtr;
+		fftw_plan * FTplan_forwardPtr;
+		fftw_plan * FTplan_backwardPtr;
+		fftw_plan * FTplan_r2hcPtr;
+		fftw_plan * FTplan_hc2rPtr;
+		fftw_plan * FTplan_r2hc_2xPtr;
+		fftw_plan * FTplan_hc2r_2xPtr;
 
-		std::complex<float> * cvec; // this is still fftw_malloc() for sake of fftw memory alignment optimization
+		std::complex<double> * cvec; // this is still fftw_malloc() for sake of fftw memory alignment optimization
 		std::int32_t * ovec; // this is still fftw_malloc() for sake of fftw memory alignment optimization
 		double * r_vec; // this will get fftw_malloc() for sake of fftw memory alignment 
 		double * hc_vecFT; // this will get fftw_malloc() for sake of fftw memory alignment 
 		double * r_vec_2x; // this will get fftw_malloc() for sake of fftw memory alignment 
 		double * hc_vec_2xFT; // this will get fftw_malloc() for sake of fftw memory alignment 
 
-		std::vector<float> rhovec;
-		std::vector<float> modamp;
-		std::vector<float> omega;
-		std::vector<float> time;
-		std::vector<float> modphase;
-		std::vector<float> phivec;
+		std::vector<double> rhovec;
+		std::vector<double> modamp;
+		std::vector<double> omega;
+		std::vector<double> time;
+		std::vector<double> modphase;
+		std::vector<double> phivec;
 
 		float nu0;
 

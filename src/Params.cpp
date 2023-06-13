@@ -39,13 +39,18 @@ Params & Params::initChirp(float second,float third,float fourth,float fifth)
 	return *this;
 }
 
-std::vector<float> & Params::getChirp(void)
+std::vector<float> & Params::getChirp(std::vector<float> & v)
 {
-	std::vector<float> v(4,float(0));
+	//std::vector<float> v(4,float(0));
+	assert(4==v.size());
 	v[0] = (*chirpDistPtr)(rng);
 	v[1] = (*TODDistPtr)(rng);
 	v[2] = (*FODDistPtr)(rng);
 	v[3] = (*fifthODDistPtr)(rng);
+	for (size_t i=0;i<v.size();i++){
+		std::printf("%e\t",float(v[i]));
+	}
+	std::printf("\n");
 	return v;
 }
 
