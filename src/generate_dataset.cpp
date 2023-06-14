@@ -44,13 +44,19 @@ int main(void)
 	float lamonoff = float(atof( std::getenv("lambda_onoff") ));
 	float tspn = float(atof( std::getenv("tspan") ));
 
+	float amp0th = float( atof( getenv("amp0th") ) );
+	float amp1st = float( atof( getenv("amp1st") ) );
+	float amp2nd = float( atof( getenv("amp2nd") ) );
+	float amp3rd = float( atof( getenv("amp3rd") ) );
+	float amp4th = float( atof( getenv("amp4th") ) );
+	float amp5th = float( atof( getenv("amp5th") ) );
+
 	float second = float( atof( getenv("chirp") ) );
 	float third = float( atof( getenv("TOD") ) );
 	float fourth = float( atof( getenv("FOD") ) );
 	float fifth = float( atof( getenv("fifthOD") ) );
 	float nulow = float( atof( std::getenv("nu_low") ) );
 	float nuhigh = float( atof( std::getenv("nu_high") ) );
-
 
 
 	size_t npulses = (size_t)atoi( std::getenv("npulses"));
@@ -73,6 +79,7 @@ int main(void)
 			.setNpulses(npulses);
 
 		params[i]->initChirp(second,third,fourth,fifth).setnulims(nulow,nuhigh);
+		params[i]->initAmp(amp0th,amp1st,amp2nd,amp3rd,amp4th,amp5th);
 		params[i]->set_lamsamples(lamsamples)
 			.set_gain(gain)
 			.set_noisescale(noisescale)
@@ -91,13 +98,22 @@ int main(void)
 	std::time_t tstop = std::time(nullptr);
 	std::cout << "\tIt has taken " << (tstop-tstart) << " s for initializing pulse and fftw plans" <<  std::endl << std::flush;
 	for (size_t i=0; i<nthreads;i++){
-		std::cout << "\n\n\t\t\t##########   FFTW plans must be created by a single thread... experimenting here   ############\n\n" << std::endl;
 		pulse[i]->setmasterplans(&(forward[i]),&(backward[i])).setmasterancillaryplans(& (plan_r2hc[i]),& (plan_hc2r[i]),& (plan_r2hc_2x[i]),& (plan_hc2r_2x[i]));
 	}
 
 	std::vector< std::vector< float > > waves; 
+	std::vector< std::vector< float > > spects; 
+	std::vector< std::vector< float > > phases; 
+	std::vector< std::vector< float > > chirps; 
+	std::vector< std::vector< float > > amps; 
+	std::vector< float > delays; 
 	for (size_t i=0;i<nthreads*params.front()->getNpulses();i++){
 		waves.push_back(std::vector< float >(pulse.front()->getsamples(),0.));
+		spects.push_back(std::vector< float >(pulse.front()->getsamples(),0.));
+		phases.push_back(std::vector< float >(pulse.front()->getsamples(),0.));
+		chirps.push_back(std::vector< float >(4,0.)); 
+		amps.push_back(std::vector< float >(6,0.)); 
+		delays.push_back(float(0));
 	}
 	std::cerr << "waves.size()\t" << (int)(waves.size()) << "\twaves.front().size()\t" << (int)(waves.front().size()) << std::endl << std::flush;
 
@@ -108,32 +124,39 @@ int main(void)
 		// http://pages.tacc.utexas.edu/~eijkhout/pcse/html/omp-data.html
 
 		size_t tid = omp_get_thread_num();
-		std::cerr << "\tentered thread " << (int)tid << "\n" << std::flush;
+		//std::cerr << "\tentered thread " << (int)tid << "\n" << std::flush;
+
 		std::time_t runstart = std::time(nullptr);
-
+		size_t mask = uint32_t(params.front()->getNpulses() >> 4) -1;
 		for (size_t n=0;n<params[tid]->getNpulses();++n){ // outermost loop for npulses //
-
-			std::cerr << "\tloop n = " << (int)n << " in thread " << (int)tid << "\n" << std::flush;
-
-
+			if ((n & mask) ==0)
+				std::cout << "\tloop n = " << (int)n << " in thread " << (int)tid << "\n" << std::flush;
 			// set scale then set delay, then add chirp... order matters //
-			pulse[tid]->rebuildvectors(params[tid]->getAmp()).setdelay(params[tid]->getDelay());
-			std::vector<float> chirpvec(4,0.);
-			pulse[tid]->addchirp(params[tid]->getChirp(chirpvec));
+			delays[tid*params[tid]->getNpulses() + n] = params[tid]->getDelay();
+			pulse[tid]->rebuildvectors(params[tid]->getAmp())
+				.setdelay( delays[tid*params[tid]->getNpulses() + n] );
+			//std::vector<float> chirpvec(4,0.);
+			//pulse[tid]->addchirp(params[tid]->getChirp(chirpvec));
+			pulse[tid]->addchirp(params[tid]->getChirp(chirps[tid*params[tid]->getNpulses() + n]));
+			pulse[tid]->modamp(params[tid]->getAmpMod(amps[tid*params[tid]->getNpulses() + n]));
 
-			pulse[tid]->fft_totime().filltime(waves[tid*nthreads + n]).fft_tofreq();
+			pulse[tid]->fillspect(spects[tid*params[tid]->getNpulses() + n]);
+			pulse[tid]->fillphase(phases[tid*params[tid]->getNpulses() + n]);
+			pulse[tid]->fft_totime().filltime(waves[tid*params[tid]->getNpulses() + n]).fft_tofreq();
 
 			} // outermost loop for npulses //
 		std::time_t runstop = std::time(nullptr);
 		runtimes[tid] = float(runstop - runstart);
 
-#pragma omp barrier
-		
+#pragma omp master
+		{
+
 		std::cout << "\t\t############ ending parallel region 1 ###########\n" << std::flush;
 		std::cout << "\t\t################## thread id "<< int(tid) << " ##################\n" << std::flush;
 		std::cout << "\t\t##############params lambda_0: " << params[tid]->lambda_0() << "##############\n" << std::flush;
 
 		std::cerr << "\t\t############## Destroying plans ################\n" << std::flush;
+		}
 
 	} // end parallel region 1
 	for (size_t i=0;i<nthreads;i++){
@@ -151,15 +174,15 @@ int main(void)
 			= NULL;
 	}
 
-	std::cout << "\n ---- just left parallel region -----" << std::endl;
-	std::cout << "\n ---- and destroyed plan vectors ----" << std::endl;
-	std::cout << "\n ---------- runtimes are ------------" << std::endl;
+	std::cout << " ---- just left parallel region -----" << std::endl;
+	std::cout << " ---- and destroyed plan vectors ----" << std::endl;
+	std::cout << " ---------- runtimes are ------------" << std::endl;
 	for (size_t i=0;i<runtimes.size();i++)
 		std::cout << runtimes[i] << "\t";
 	std::cout << std::endl;
-	std::cout << "\n ------------------------------------" << std::endl;
-	std::cout << "\n ---------- Writing H5 file ---------" << std::endl;
-	std::cout << "\n --------- consider parallel --------" << std::endl;
+	std::cout << " ------------------------------------" << std::endl;
+	std::cout << " ---------- Writing H5 file ---------" << std::endl;
+	std::cout << " --------- consider parallel --------" << std::endl;
 
 	H5::FloatType h5float( H5::PredType::NATIVE_FLOAT );
 	H5::IntType h5uint16( H5::PredType::NATIVE_USHORT );
@@ -189,26 +212,56 @@ int main(void)
         H5::Group * sansPtr = new H5::Group( hfilePtr->createGroup( "sans" )); // sans noise
         H5::Group * avecPtr = new H5::Group( hfilePtr->createGroup( "avec" )); // avec noise
 
+	const uint8_t drank(1);
+	hsize_t delaydims[drank];
+	delaydims[0] = waves.size();
+	std::string delayname = "/sans/delays";
+	H5::DataSpace * delayspace = new H5::DataSpace( drank , delaydims );
+	H5::DataSet * delaysetPtr = new H5::DataSet( sansPtr->createDataSet( delayname, h5float, *delayspace ) );
+
 	const uint8_t rank(1);
-	hsize_t dims[1];
+	hsize_t dims[rank],chdims[rank];
        	dims[0] = waves.back().size();
+	chdims[0] = chirps.back().size();
 	for (size_t n=0;n<waves.size();n++){
-		std::string pulsename = "/sans/pulse_" + std::to_string((int)n) + "_real";
+		std::string pulsename = "/sans/pulse_" + std::to_string((int)n);
+		std::string spectname = "/sans/spect_" + std::to_string((int)n);
+		std::string phasename = "/sans/phase_" + std::to_string((int)n);
+		std::string chirpname = "/sans/chirp_" + std::to_string((int)n);
 		// std::cerr << "n = " << (int)n << "\tpulsename = " << pulsename << std::endl << std::flush;
 		H5::DataSpace * dataspace = new H5::DataSpace( rank , dims );
 		H5::DataSet * datasetPtr = new H5::DataSet( sansPtr->createDataSet( pulsename, h5float, *dataspace ) );
+		H5::DataSpace * spectspace = new H5::DataSpace( rank , dims );
+		H5::DataSet * spectsetPtr = new H5::DataSet( sansPtr->createDataSet( spectname, h5float, *spectspace ) );
+		H5::DataSpace * phasespace = new H5::DataSpace( rank , dims );
+		H5::DataSet * phasesetPtr = new H5::DataSet( sansPtr->createDataSet( phasename, h5float, *phasespace ) );
 
+		H5::DataSpace * chirpspace = new H5::DataSpace( rank , chdims );
+		H5::DataSet * chirpsetPtr = new H5::DataSet( sansPtr->createDataSet( chirpname, h5float, *chirpspace ) );
 
+		/*
 		std::vector<float>::iterator maxelement;
 		maxelement = std::max_element(waves[n].begin(),waves[n].end());
-		std::cerr << "address " << std::distance(waves[n].begin(),maxelement) << ", value = " << *(maxelement) << "\n";
+		std::cout << "address " << std::distance(waves[n].begin(),maxelement) << ", value = " << *(maxelement) << "\n";
+		*/
 		datasetPtr->write( waves[n].data(), h5float);
+		spectsetPtr->write( spects[n].data(), h5float);
+		phasesetPtr->write( phases[n].data(), h5float);
+		chirpsetPtr->write( chirps[n].data(), h5float);
 
         	delete datasetPtr;
         	delete dataspace;
+        	delete spectsetPtr;
+        	delete spectspace;
+        	delete phasesetPtr;
+        	delete phasespace;
+        	delete chirpsetPtr;
+        	delete chirpspace;
 	}
+	delete delaysetPtr;
+	delete delayspace;
 
-        delete sansPtr;
+	delete sansPtr;
         delete avecPtr;
         delete hfilePtr;
 

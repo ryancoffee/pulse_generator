@@ -9,6 +9,7 @@
 #include <cassert>
 #include <cstdint> // for appendwavelegth() and int32_t
 #include <limits> // for std::numeric_limits<short int>::max() and min()
+#include <functional>
 
 // my headers
 #include <Pulse.hpp>
@@ -93,6 +94,8 @@ PulseFreq::PulseFreq(Params &params)
 	buildvectors(samples);
 	nu0=omega_center/(2.0*pi<float>())*fsPau<float>();
 	phase_GDD=phase_TOD=phase_4th=phase_5th=0.0;
+	amp_0th = 1.0;
+	amp_1st = amp_2nd = amp_3rd = amp_4th = amp_5th = 0.0;
 	m_lamsamples = params.lamsamples;
 	m_gain = params.gain;
 	m_noisescale = params.noisescale;
@@ -128,7 +131,7 @@ PulseFreq::PulseFreq(const PulseFreq &rhs) // deep-ish copy constructor
 	tspan = rhs.tspan;
 	lambda_center=rhs.lambda_center;lambda_width=rhs.lambda_width;
 	phase_GDD=rhs.phase_GDD;phase_TOD=rhs.phase_TOD;phase_4th=rhs.phase_4th;phase_5th=rhs.phase_5th;
-
+	amp_0th = rhs.amp_0th;amp_1st = rhs.amp_1st;amp_2nd = rhs.amp_2nd;amp_3rd = rhs.amp_3rd;amp_4th = rhs.amp_4th;amp_5th = rhs.amp_5th;
 	dtime = rhs.dtime;time_center=rhs.time_center;time_wdith=rhs.time_wdith;
 
 
@@ -557,13 +560,74 @@ void PulseFreq::printwavelength(std::ofstream * outfile,const float *delay){
 	(*outfile) << "\n";
 }
 
+
+PulseFreq & PulseFreq::modulateamp_freq(const std::vector<double> & modulation) 
+{
+	if (intime){
+		std::cerr << "whoops, trying time modulation but in time domain\n" << std::flush;
+	}
+	if (modulation.size() != samples/2){
+		std::cerr << "size mismatch, out of range in modulatephase_freq()" << std::endl;
+	}
+	std::transform(modulation.begin(),modulation.end(),rhovec.begin(),rhovec.begin(),[](const double &x,double &y){return (y * x);});
+	std::transform(modulation.begin(),modulation.end(),rhovec.rbegin(),rhovec.rbegin(),[](const double &x,double &y){return (y * x);});
+	rhophi2cvec();
+	return *this;
+}
+
+PulseFreq & PulseFreq::modulatephase_freq(const std::vector<double> & modulation) 
+{
+	if (intime){
+		std::cerr << "whoops, trying time modulation but in time domain\n" << std::flush;
+	}
+	if (modulation.size() != samples/2){
+		std::cerr << "size mismatch, out of range in modulatephase_freq()" << std::endl;
+	}
+	std::transform(modulation.begin(),modulation.end(),phivec.begin(),phivec.begin(),[](const double &x,double &y){return (y + x);});
+	std::transform(modulation.begin(),modulation.end(),phivec.rbegin(),phivec.rbegin(),[](const double &x,double &y){return (y - x);});
+	rhophi2cvec();
+	return *this;
+}
+
+PulseFreq & PulseFreq::fillphase(std::vector < float > & data)
+{
+	if (intime)
+		fft_tofreq();
+	assert(samples==data.size());
+	for (size_t i=0;i<samples;i++){
+		data[i] = float(std::arg(cvec[i]));
+	}
+	return *this;
+}
+PulseFreq & PulseFreq::fillspect(std::vector < float > & data)
+{
+	if (intime)
+		fft_tofreq();
+	assert(samples==data.size());
+	for (size_t i=0;i<samples;i++){
+		data[i] = float(std::norm(cvec[i]));
+	}
+	return *this;
+}
+PulseFreq & PulseFreq::fillfreq(std::vector < float > & data)
+{
+	if (intime)
+		fft_tofreq();
+	assert(samples==data.size());
+	for (size_t i=0;i<samples;i++){
+		data[i] = float(std::real(cvec[i]));
+	}
+	return *this;
+}
 PulseFreq & PulseFreq::filltime_envelope(std::vector < float > & data)
 {
 	if (infreq)
 		fft_totime();
 	assert(samples==data.size());
-	for (size_t i=0;i<samples;i++)
-		data[i] = float(std::norm(cvec[i]));
+	for (size_t i=0;i<samples/2;i++){
+		data[i] = float(std::norm(cvec[i+samples/2]));
+		data[i+samples/2] = float(std::norm(cvec[i]));
+	}
 	return *this;
 }
 PulseFreq & PulseFreq::filltime(std::vector < float > & data)
@@ -571,8 +635,10 @@ PulseFreq & PulseFreq::filltime(std::vector < float > & data)
 	if (infreq)
 		fft_totime();	
 	assert(data.size()==samples);
-	for (size_t i=0;i<samples;i++)
-		data[i] = float(cvec[i].real());
+	for (size_t i=0;i<samples/2;i++){
+		data[i] = float(cvec[i+samples/2].real());
+		data[i+samples/2] = float(cvec[i].real());
+	}
 	return *this;
 }
 
@@ -750,7 +816,6 @@ PulseFreq & PulseFreq::setmasterplans(fftw_plan * forward,fftw_plan * backward)
 			reinterpret_cast<fftw_complex*>(cvec),
 			reinterpret_cast<fftw_complex*>(cvec), 
 			FFTW_FORWARD, FFTW_ESTIMATE);
-	std::cerr << "\n\nFuck this\n\t\tThis is where I am failing with the multi-threading, the FFTW plans are killing me\n" << std::endl << std::flush;
 	*backward = fftw_plan_dft_1d(samples, 
 			reinterpret_cast<fftw_complex*>(cvec), 
 			reinterpret_cast<fftw_complex*>(cvec), 
@@ -811,6 +876,35 @@ PulseFreq & PulseFreq::setmasterancillaryplans(fftw_plan * r2hc,fftw_plan * hc2r
 	FTplan_hc2r_2xPtr = hc2r_2x;
 	return *this;
 }
+
+
+PulseFreq & PulseFreq::mulAllAmp(void)
+{
+	std::vector<double> modvec(samples/2,amp_0th);
+	for (size_t i=0;i<modvec.size();i++){
+		modvec[i] += amp_1st*(double)omega[i]-omega_center;
+		modvec[i] += amp_2nd*std::pow((double)omega[i]-omega_center,int(2));
+		modvec[i] += amp_3rd*std::pow((double)omega[i]-omega_center,int(3));
+		modvec[i] += amp_4th*std::pow((double)omega[i]-omega_center,int(4));
+		modvec[i] += amp_5th*std::pow((double)omega[i]-omega_center,int(5));
+	}
+	modulateamp_freq(modvec);
+	return *this;
+}
+PulseFreq & PulseFreq::addAllPhase(void)
+{
+	std::vector<double> modvec(samples/2,0.);
+	for (size_t i=0;i<modvec.size();i++){
+		modvec[i] = phase_GDD*std::pow((double)omega[i]-omega_center,int(2));
+		modvec[i] += phase_TOD*std::pow((double)omega[i]-omega_center,int(3));
+		modvec[i] += phase_4th*std::pow((double)omega[i]-omega_center,int(4));
+		modvec[i] += phase_5th*std::pow((double)omega[i]-omega_center,int(5));
+	}
+	modulatephase_freq(modvec);
+	return *this;
+}
+
+
 PulseFreq & PulseFreq::setGDDtoindex(const unsigned indx,const int omega_sign) {
 	phivec[indx] = omega_sign*phase_GDD*std::pow(omega[indx]-(float(omega_sign)*omega_center),int(2));
 	rhophi2cvec(indx);

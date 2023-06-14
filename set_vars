@@ -2,8 +2,8 @@
 
 starttime=$(date +%s);
 export HOSTNAME=$HOSTNAME:
-export nthreads=2;
-export npulses=8; #1024;
+export nthreads=8;
+export npulses=128;
 export datadir="$HOME/pulsegendata/h5files/";
 mkdir -p $datadir;
 
@@ -11,14 +11,14 @@ export fsWindow=1000;
 
 
 export delays_mean=0;
-export delays_std=25;
+export delays_std=.001;
 
 export amp_mean=1;
 export amp_std=1;
 
-export lambda_0=600; #in nm
-export lambda_width=200;
-export lambda_onoff=10;
+export lambda_0=800; #in nm
+export lambda_width=400;
+export lambda_onoff=200; ## this should be 1/2 the width of the lambda_width to get something like a gaussian
 export tspan=1000; ##32768; ## really using this one
 
 export noisescale=.005;
@@ -29,11 +29,18 @@ export nu_low=0.492; # 610nm
 export nu_high=0.769; # 390nm 
 
 touch logfile
-# call to main #
-export chirp=100; 
-export TOD=10;
-export FOD=1;
-export fifthOD=.1;
+
+export amp0th=1.0
+export amp1st=0.001
+export amp2nd=0.001
+export amp3rd=0.001
+export amp4th=0.001
+export amp5th=0.001
+
+export chirp=0.025; 
+export TOD=0.001;
+export FOD=0.001;
+export fifthOD=0.001;
 # noise values to simulate unstable continuum, should be positive
 export chirpnoise=0; 
 export TODnoise=0;

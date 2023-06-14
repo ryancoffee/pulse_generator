@@ -150,6 +150,9 @@ class PulseFreq
 			return *this;
 		}
 
+		PulseFreq & fillphase(std::vector < float > & data);
+		PulseFreq & fillspect(std::vector < float > & data);
+		PulseFreq & fillfreq(std::vector < float > & data);
 		PulseFreq & filltime(std::vector < float > & data);
 		PulseFreq & filltime_envelope(std::vector < float > & data);
 
@@ -236,27 +239,15 @@ class PulseFreq
 			phase_TOD = chirp_in[1];
 			phase_4th = chirp_in[2];
 			phase_5th = chirp_in[3];
-			addGDDtoindex(0,1);
-			addGDDtoindex(samples/2,-1);
-			addTODtoindex(0,1);
-			addTODtoindex(samples/2,-1);
-			add4thtoindex(0,1);
-			add4thtoindex(samples/2,-1);
-			add5thtoindex(0,1);
-			add5thtoindex(samples/2,-1);
-			for (unsigned i = 1; i<samples/2;i++){
-				addGDDtoindex(i,1);
-				addGDDtoindex(samples-i,-1);
-				addTODtoindex(i,1);
-				addTODtoindex(samples-i,-1);
-				add4thtoindex(i,1);
-				add4thtoindex(samples-i,-1);
-				add5thtoindex(i,1);
-				add5thtoindex(samples-i,-1);
-			}
+			addAllPhase();
 			return *this;
 		}
-
+		PulseFreq * mulamp(){
+			HERE
+		}
+		PulseFreq & mulamp(std::vector<float> & chirp_in);
+		PulseFreq & addAllPhase(void);
+		PulseFreq & mulAllAmp(void);
 
 		PulseFreq & attenuate(float attenfactor);
 		PulseFreq & delay(float delayin); // expects delay in fs
@@ -292,6 +283,9 @@ class PulseFreq
 			}
 			return 0;
 		}
+
+		PulseFreq & modulateamp_freq(const std::vector<double> & modulation);
+		PulseFreq & modulatephase_freq(const std::vector<double> & modulation);
 
 		int modulatephase_time(const std::vector<float> & modulation) {
 			if (infreq){
@@ -361,6 +355,7 @@ class PulseFreq
 		float domega,lambda_center,lambda_width,omega_center,omega_width,omega_high;
 		float omega_onwidth,omega_offwidth;
 		float phase_GDD,phase_TOD,phase_4th,phase_5th;
+		float amp_0th,amp_1st,amp_2nd,amp_3rd,amp_4th,amp_5th;
 		float dtime,time_center,time_wdith;
 
 		// FFTW variables //
@@ -402,12 +397,12 @@ class PulseFreq
 
 		PulseFreq & setGDDtoindex(const unsigned indx,const int omega_sign);
 		PulseFreq & setTODtoindex(const unsigned indx,const int omega_sign);
-		PulseFreq &  set4thtoindex(const unsigned indx,const int omega_sign);
-		PulseFreq &  set5thtoindex(const unsigned indx,const int omega_sign);
+		PulseFreq & set4thtoindex(const unsigned indx,const int omega_sign);
+		PulseFreq & set5thtoindex(const unsigned indx,const int omega_sign);
 		PulseFreq & addGDDtoindex(const unsigned indx,const int omega_sign);
 		PulseFreq & addTODtoindex(const unsigned indx,const int omega_sign);
-		PulseFreq &  add4thtoindex(const unsigned indx,const int omega_sign);
-		PulseFreq &  add5thtoindex(const unsigned indx,const int omega_sign);
+		PulseFreq & add4thtoindex(const unsigned indx,const int omega_sign);
+		PulseFreq & add5thtoindex(const unsigned indx,const int omega_sign);
 
 
 		PulseFreq &  modampatindx(const unsigned indx,const std::vector<float> & modvec) {

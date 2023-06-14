@@ -36,8 +36,10 @@ class Params
 	float omega_onoff(void){return ( twopi<float>()/(lam0+lamwidth/float(2)-lamonoff)*C_nmPfs<float>()*fsPau<float>() - omega_low() );}
 	float omega0(void){ return (omega_high()+omega_low())/float(2);}
 
+	Params & initAmp(float zeroth=1.,float first=0,float second=0,float third=0,float fourth=0,float fifth=0);
 	Params & initChirp(float second=0,float third=0,float fourth=0,float fifth=0);
 	std::vector<float> & getChirp(std::vector<float> & v);
+	std::vector<float> & getAmpMod(std::vector<float> & v);
 	float getAmp(void);
 	float getDelay(void);
 	Params & setnulims(float low, float high);
@@ -66,6 +68,13 @@ class Params
 	/* =========== random members =========== */
 	//std::default_random_engine rng;
 	std::random_device rng;
+
+	std::uniform_real_distribution<float>* amp0thDistPtr;
+	std::uniform_real_distribution<float>* amp1stDistPtr;
+	std::uniform_real_distribution<float>* amp2ndDistPtr;
+	std::uniform_real_distribution<float>* amp3rdDistPtr;
+	std::uniform_real_distribution<float>* amp4thDistPtr;
+	std::uniform_real_distribution<float>* amp5thDistPtr;
 
 	std::uniform_real_distribution<float>* delays_distributionPtr;
 	std::uniform_real_distribution<float>* laser_distributionPtr; 
