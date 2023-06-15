@@ -2,6 +2,9 @@
 ==============================
 Generating dataset of broadband pulses of varying spectral phase and noise floor.
 
+![plot](./figs/Figure_1.png)
+sample pulses, x-axis is time in femtoseconds (I think).  
+
 ## Notes to self
 -------------
 For what its worth, this used up only 1/2 of the 32GB RAM on my laptop using 4 cores dual threaded for total 8 threads in parallel.
