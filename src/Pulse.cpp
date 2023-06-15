@@ -43,7 +43,7 @@ PulseTime & PulseTime::setwidth(const float in)
 
 PulseTime & PulseTime::sett0(const float in)
 {
-  t0 = in / fsPau<float>();
+  t0 = in / Constants::fsPau<float>();
   return *this;
 }
 
@@ -150,8 +150,6 @@ PulseFreq::PulseFreq(const PulseFreq &rhs) // deep-ish copy constructor
 	DataOps::clone(hc_vecFT,rhs.hc_vecFT,samples);
 	DataOps::clone(r_vec_2x,rhs.r_vec_2x,2*samples);
 	DataOps::clone(hc_vec_2xFT,rhs.hc_vec_2xFT,2*samples);
-	DataOps::clone(modamp,rhs.modamp);
-	DataOps::clone(modphase,rhs.modphase);
 	//std::cerr << "\t leaving Copy constructor of PulseFreq::PulseFreq(PulseFreq &rhs)\n" << std::flush;
 }
 
@@ -197,8 +195,6 @@ PulseFreq & PulseFreq::operator=(const PulseFreq & rhs) // shallow-ish assignmen
 	DataOps::clone(r_vec_2x,rhs.r_vec_2x,2*samples);
 	DataOps::clone(hc_vec_2xFT,rhs.hc_vec_2xFT,2*samples);
 
-	DataOps::clone(modamp,rhs.modamp);
-	DataOps::clone(modphase,rhs.modphase);
 	return *this;
 }
 
@@ -561,16 +557,37 @@ void PulseFreq::printwavelength(std::ofstream * outfile,const float *delay){
 }
 
 
+
+PulseFreq & PulseFreq::modulateamp_time(const std::vector<double> & modulation)
+{
+	if (infreq){
+		std::cerr << "whoops, trying time modulation but in frequency domain\n" << std::flush;
+		return *this;
+	}
+	assert(modulation.size() ==samples);
+	std::transform(modulation.begin(),modulation.end(),rhovec.begin(),rhovec.begin(),[](const double &x,double &y){return (x>0?y*std::tanh(x):double(0));});
+	return *this;
+}
+PulseFreq & PulseFreq::modulatephase_time(const std::vector<double> & modulation)
+{
+	if (infreq){
+		std::cerr << "whoops, trying time modulation but in frequency domain\n" << std::flush;
+		return *this;
+	}
+	assert(modulation.size() ==samples);
+	std::transform(modulation.begin(),modulation.end(),phivec.begin(),phivec.begin(),[](const double &x,double &y){return (y + x);});
+	return *this;
+}
+
 PulseFreq & PulseFreq::modulateamp_freq(const std::vector<double> & modulation) 
 {
 	if (intime){
 		std::cerr << "whoops, trying time modulation but in time domain\n" << std::flush;
+		return *this;
 	}
-	if (modulation.size() != samples/2){
-		std::cerr << "size mismatch, out of range in modulatephase_freq()" << std::endl;
-	}
-	std::transform(modulation.begin(),modulation.end(),rhovec.begin(),rhovec.begin(),[](const double &x,double &y){return (y * x);});
-	std::transform(modulation.begin(),modulation.end(),rhovec.rbegin(),rhovec.rbegin(),[](const double &x,double &y){return (y * x);});
+	assert(modulation.size() == samples/2);
+	std::transform(modulation.begin(),modulation.end(),rhovec.begin(),rhovec.begin(),[](const double &x,double &y){return (x>0?y*std::tanh(x):double(0));});
+	std::transform(modulation.begin(),modulation.end(),rhovec.rbegin(),rhovec.rbegin(),[](const double &x,double &y){return (x>0?y*std::tanh(x):double(0));});
 	rhophi2cvec();
 	return *this;
 }
@@ -579,10 +596,9 @@ PulseFreq & PulseFreq::modulatephase_freq(const std::vector<double> & modulation
 {
 	if (intime){
 		std::cerr << "whoops, trying time modulation but in time domain\n" << std::flush;
+		return *this;
 	}
-	if (modulation.size() != samples/2){
-		std::cerr << "size mismatch, out of range in modulatephase_freq()" << std::endl;
-	}
+	assert(modulation.size() == samples/2);
 	std::transform(modulation.begin(),modulation.end(),phivec.begin(),phivec.begin(),[](const double &x,double &y){return (y + x);});
 	std::transform(modulation.begin(),modulation.end(),phivec.rbegin(),phivec.rbegin(),[](const double &x,double &y){return (y - x);});
 	rhophi2cvec();
@@ -725,8 +741,6 @@ PulseFreq & PulseFreq::buildvectors(const size_t s){
 
 	rhovec.resize(s,0.0);
 	phivec.resize(s,0.0);
-	modamp.resize(s,1.0);
-	modphase.resize(s,0.0);
 	omega.resize(s);
 	time.resize(s);
 	samples = s;
@@ -882,11 +896,11 @@ PulseFreq & PulseFreq::mulAllAmp(void)
 {
 	std::vector<double> modvec(samples/2,amp_0th);
 	for (size_t i=0;i<modvec.size();i++){
-		modvec[i] += amp_1st*(double)omega[i]-omega_center;
-		modvec[i] += amp_2nd*std::pow((double)omega[i]-omega_center,int(2));
-		modvec[i] += amp_3rd*std::pow((double)omega[i]-omega_center,int(3));
-		modvec[i] += amp_4th*std::pow((double)omega[i]-omega_center,int(4));
-		modvec[i] += amp_5th*std::pow((double)omega[i]-omega_center,int(5));
+		modvec[i] += std::pow(Constants::fsPau<double>(),int(-1))*amp_1st * ((double)omega[i]-omega_center);
+		modvec[i] += std::pow(Constants::fsPau<double>(),int(-2))*amp_2nd*std::pow((double)omega[i]-omega_center,int(2));
+		modvec[i] += std::pow(Constants::fsPau<double>(),int(-3))*amp_3rd*std::pow((double)omega[i]-omega_center,int(3));
+		modvec[i] += std::pow(Constants::fsPau<double>(),int(-4))*amp_4th*std::pow((double)omega[i]-omega_center,int(4));
+		modvec[i] += std::pow(Constants::fsPau<double>(),int(-5))*amp_5th*std::pow((double)omega[i]-omega_center,int(5));
 	}
 	modulateamp_freq(modvec);
 	return *this;
@@ -894,11 +908,13 @@ PulseFreq & PulseFreq::mulAllAmp(void)
 PulseFreq & PulseFreq::addAllPhase(void)
 {
 	std::vector<double> modvec(samples/2,0.);
+	//std::cerr << "Constants::fsPau<double>() = " << Constants::fsPau<double>() << std::endl;
+	//std::cerr << "domega = " << domega << std::endl;
 	for (size_t i=0;i<modvec.size();i++){
-		modvec[i] = phase_GDD*std::pow((double)omega[i]-omega_center,int(2));
-		modvec[i] += phase_TOD*std::pow((double)omega[i]-omega_center,int(3));
-		modvec[i] += phase_4th*std::pow((double)omega[i]-omega_center,int(4));
-		modvec[i] += phase_5th*std::pow((double)omega[i]-omega_center,int(5));
+		modvec[i] = std::pow(Constants::fsPau<double>(),int(-2))*phase_GDD*std::pow((double)omega[i]-omega_center,int(2));
+		modvec[i] += std::pow(Constants::fsPau<double>(),int(-3))*phase_TOD*std::pow((double)omega[i]-omega_center,int(3));
+		modvec[i] += std::pow(Constants::fsPau<double>(),int(-4))*phase_4th*std::pow((double)omega[i]-omega_center,int(4));
+		modvec[i] += std::pow(Constants::fsPau<double>(),int(-5))*phase_5th*std::pow((double)omega[i]-omega_center,int(5));
 	}
 	modulatephase_freq(modvec);
 	return *this;

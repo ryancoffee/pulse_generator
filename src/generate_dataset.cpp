@@ -135,10 +135,8 @@ int main(void)
 			delays[tid*params[tid]->getNpulses() + n] = params[tid]->getDelay();
 			pulse[tid]->rebuildvectors(params[tid]->getAmp())
 				.setdelay( delays[tid*params[tid]->getNpulses() + n] );
-			//std::vector<float> chirpvec(4,0.);
-			//pulse[tid]->addchirp(params[tid]->getChirp(chirpvec));
-			pulse[tid]->addchirp(params[tid]->getChirp(chirps[tid*params[tid]->getNpulses() + n]));
-			pulse[tid]->modamp(params[tid]->getAmpMod(amps[tid*params[tid]->getNpulses() + n]));
+			pulse[tid]->addChirp(params[tid]->getChirp(chirps[tid*params[tid]->getNpulses() + n]));
+			pulse[tid]->modAmp(params[tid]->getAmpMod(amps[tid*params[tid]->getNpulses() + n]));
 
 			pulse[tid]->fillspect(spects[tid*params[tid]->getNpulses() + n]);
 			pulse[tid]->fillphase(phases[tid*params[tid]->getNpulses() + n]);

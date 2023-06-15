@@ -57,7 +57,7 @@ Params & Params::initChirp(float second,float third,float fourth,float fifth)
 
 std::vector<float> & Params::getAmpMod(std::vector<float> & v)
 {
-	assert(5==v.size());
+	assert(6==v.size());
 	v[0] = (*amp0thDistPtr)(rng);
 	v[1] = (*amp1stDistPtr)(rng);
 	v[2] = (*amp2ndDistPtr)(rng);

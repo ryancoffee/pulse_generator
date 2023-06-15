@@ -30,14 +30,18 @@ export nu_high=0.769; # 390nm
 
 touch logfile
 
-export amp0th=1.0
-export amp1st=0.001
-export amp2nd=0.001
-export amp3rd=0.001
-export amp4th=0.001
+# ensure all these amplitude modulations are in the very close vicinity of 1
+#500.; # for tspan 1000 and fsPau()=.024, this gives a factor of 272034 with sqrt(272034)=522 to bring the chirp into the range of "1" for 
+#let's try instead applying chirp polynomial as an exponent... then amplitude will always be positive definate
+export amp0th=1.0 # I guess this one sort of causes double pulses if it's not high enough and the others cause zero crossings in the amplitude
+export amp1st=0.001 # 
+export amp2nd=0.001 # 
+export amp3rd=0.001 # 
+export amp4th=0.001 #
 export amp5th=0.001
 
-export chirp=0.025; 
+#500.; # for tspan 1000 and fsPau()=.024, this gives a factor of 272034 with sqrt(272034)=522 to bring the chirp into the range of "1" for 
+export chirp=0.001; 
 export TOD=0.001;
 export FOD=0.001;
 export fifthOD=0.001;
