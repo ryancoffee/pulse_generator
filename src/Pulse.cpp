@@ -658,6 +658,25 @@ PulseFreq & PulseFreq::filltime(std::vector < float > & data)
 	return *this;
 }
 
+PulseFreq & PulseFreq::fillfvec(std::vector<float> & f)
+{
+	assert(f.size()==samples);
+	//double fullfreq=omega.back();
+	double fullfreq;
+	fullfreq = omega.back();
+	std::transform(omega.begin()+samples/2,omega.end(),f.begin(),f.begin(),[fullfreq](const double & x,float & y){return ((float)(x - fullfreq)/(2.0*pi<float>())/fsPau<float>());});
+	std::transform(omega.begin(),omega.begin()+samples/2,f.begin()+samples/2,f.begin()+samples/2,[](const double & x,float & y){return ((float)x/(2.0*pi<float>())/fsPau<float>());});
+	return *this;
+}
+PulseFreq & PulseFreq::filltvec(std::vector<float> & t)
+{
+	assert(t.size()==samples);
+	double window;
+	window = time.back();
+	std::transform(time.begin()+samples/2,time.end(),t.begin(),t.begin(),[window](const double & x,float & y){return ((float)(x - window)*fsPau<float>());});
+	std::transform(time.begin(),time.begin()+samples/2,t.begin()+samples/2,t.begin()+samples/2,[](const double & x,float & y){return ((float)(x)*fsPau<float>());});
+	return *this;
+}
 void PulseFreq::printtime(std::ofstream * outfile){
 	(*outfile) << ("#time\treal\timag\n");
 	for (unsigned i = samples/2;i<samples;i++){

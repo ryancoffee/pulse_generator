@@ -150,6 +150,8 @@ class PulseFreq
 			return *this;
 		}
 
+		PulseFreq & fillfvec(std::vector<float> & f);
+		PulseFreq & filltvec(std::vector<float> & t);
 		PulseFreq & fillphase(std::vector < float > & data);
 		PulseFreq & fillspect(std::vector < float > & data);
 		PulseFreq & fillfreq(std::vector < float > & data);

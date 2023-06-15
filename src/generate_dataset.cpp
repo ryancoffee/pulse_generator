@@ -106,14 +106,16 @@ int main(void)
 	std::vector< std::vector< float > > phases; 
 	std::vector< std::vector< float > > chirps; 
 	std::vector< std::vector< float > > amps; 
-	std::vector< float > delays; 
+	std::vector< float > delays(nthreads*params.front()->getNpulses(),0.); 
+	std::vector< float > freqs(pulse.front()->getsamples(),0.); 
+	std::vector< float > times(pulse.front()->getsamples(),0.); 
+	pulse.front()->filltvec(times).fillfvec(freqs);
 	for (size_t i=0;i<nthreads*params.front()->getNpulses();i++){
 		waves.push_back(std::vector< float >(pulse.front()->getsamples(),0.));
 		spects.push_back(std::vector< float >(pulse.front()->getsamples(),0.));
 		phases.push_back(std::vector< float >(pulse.front()->getsamples(),0.));
 		chirps.push_back(std::vector< float >(4,0.)); 
 		amps.push_back(std::vector< float >(6,0.)); 
-		delays.push_back(float(0));
 	}
 	std::cerr << "waves.size()\t" << (int)(waves.size()) << "\twaves.front().size()\t" << (int)(waves.front().size()) << std::endl << std::flush;
 
@@ -211,11 +213,22 @@ int main(void)
         H5::Group * avecPtr = new H5::Group( hfilePtr->createGroup( "avec" )); // avec noise
 
 	const uint8_t drank(1);
-	hsize_t delaydims[drank];
+	hsize_t delaydims[drank],timesdims[drank],freqsdims[drank];
 	delaydims[0] = waves.size();
+	timesdims[0] = times.size();
+	freqsdims[0] = freqs.size();
 	std::string delayname = "/sans/delays";
+	std::string timesname = "/sans/times";
+	std::string freqsname = "/sans/freqs";
 	H5::DataSpace * delayspace = new H5::DataSpace( drank , delaydims );
 	H5::DataSet * delaysetPtr = new H5::DataSet( sansPtr->createDataSet( delayname, h5float, *delayspace ) );
+	H5::DataSpace * timesspace = new H5::DataSpace( drank , timesdims );
+	H5::DataSet * timessetPtr = new H5::DataSet( sansPtr->createDataSet( timesname, h5float, *timesspace ) );
+	H5::DataSpace * freqsspace = new H5::DataSpace( drank , freqsdims );
+	H5::DataSet * freqssetPtr = new H5::DataSet( sansPtr->createDataSet( freqsname, h5float, *freqsspace ) );
+	delaysetPtr->write(delays.data(),h5float);
+	timessetPtr->write(times.data(),h5float);
+	freqssetPtr->write(delays.data(),h5float);
 
 	const uint8_t rank(1);
 	hsize_t dims[rank],chdims[rank];
@@ -258,6 +271,10 @@ int main(void)
 	}
 	delete delaysetPtr;
 	delete delayspace;
+	delete timessetPtr;
+	delete timesspace;
+	delete freqssetPtr;
+	delete freqsspace;
 
 	delete sansPtr;
         delete avecPtr;

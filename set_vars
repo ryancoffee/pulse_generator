@@ -11,7 +11,7 @@ export fsWindow=1000;
 
 
 export delays_mean=0;
-export delays_std=.001;
+export delays_std=200.0;
 
 export amp_mean=1;
 export amp_std=1;
@@ -34,17 +34,17 @@ touch logfile
 #500.; # for tspan 1000 and fsPau()=.024, this gives a factor of 272034 with sqrt(272034)=522 to bring the chirp into the range of "1" for 
 #let's try instead applying chirp polynomial as an exponent... then amplitude will always be positive definate
 export amp0th=1.0 # I guess this one sort of causes double pulses if it's not high enough and the others cause zero crossings in the amplitude
-export amp1st=0.001 # 
-export amp2nd=0.001 # 
-export amp3rd=0.001 # 
-export amp4th=0.001 #
-export amp5th=0.001
+export amp1st=2.0 # 
+export amp2nd=4.0 # 
+export amp3rd=8.0 # 
+export amp4th=16.0 #
+export amp5th=32.0 #
 
 #500.; # for tspan 1000 and fsPau()=.024, this gives a factor of 272034 with sqrt(272034)=522 to bring the chirp into the range of "1" for 
-export chirp=0.001; 
-export TOD=0.001;
-export FOD=0.001;
-export fifthOD=0.001;
+export chirp=100.0; 
+export TOD=100.0;
+export FOD=100.0;
+export fifthOD=100.0;
 # noise values to simulate unstable continuum, should be positive
 export chirpnoise=0; 
 export TODnoise=0;
