@@ -1,5 +1,5 @@
 # generate\_dataset
-==============================
+==============================  
 Generating dataset of broadband pulses of varying spectral phase (and noise floor).  The noise floor is not implemented yet since this can be added at the time of use for random white noise.  This will be implemented after we have a noise model decided and then we will also likely trim out the storage of also chirp, phase, and spectrum of the result.
 
 Edit the config file `set_vars` to set the window of delay and other pulse parameters, as well as the number of threads and pulses generated per thread.
@@ -17,7 +17,7 @@ done
 ```
 The `sleep 30` is used to ensure the second h5 file will pick up the next minute for the name.  This is an artifact we can change later once we know how many `npulses` we can set in the config file `set_vars`.  The `npulses` of only 4096 for my laptop with `nthreads = 8` is limited to use about 55% of the system memory (32GB total) since memory usage scales linearly with (`nthreads * npuses`).  One can adjust the sleep time and npulses and nthreads based on the target system.  Be careful, I easily and accidentally filled my laptop filesystem, each file is 3BG and so `./run_10` will fill 30GB of hard disc space.
 
-![plot](./figs/Figure_1.png)
+![plot](./figs/Figure_1.png)  
 sample pulses, x-axis is time in femtoseconds (I think).  
 
 ## Notes to self  
