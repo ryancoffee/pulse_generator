@@ -2,59 +2,61 @@
 
 starttime=$(date +%s);
 export HOSTNAME=$HOSTNAME:
-export nthreads=8;
-export npulses=128;
-export datadir="$HOME/pulsegendata/h5files/";
+export nthreads=8; # number of threads to use, npulses will be generated for each pulse
+export npulses=4096; #16384; #128; #=1024; number of pulses simulated for each thread
+export datadir="$HOME/pulsegendata/h5files/800nm/"; # directory/destination for .h5 files
+#export datadir="/media/coffee/9C33-6BBD/pulsegendata/h5files/800nm/";
 mkdir -p $datadir;
 
-export fsWindow=1000;
-
+export fsWindow=1000; # full time window in femtoseconds
 
 export delays_mean=0;
 export delays_std=200.0;
 
-export amp_mean=1;
+export amp_mean=1; #amplitude runs from mean-std to man+std for uniform random distribution
 export amp_std=1;
 
 export lambda_0=800; #in nm
-export lambda_width=400;
+export lambda_width=400; #in nm
 export lambda_onoff=200; ## this should be 1/2 the width of the lambda_width to get something like a gaussian
-export tspan=1000; ##32768; ## really using this one
+export tspan=1000; #tspan is somehow also the temporal window
 
-export noisescale=.005;
+export noisescale=.005; # so far not used.
 
-export sampleinterval=4;
+export sampleinterval=4; # not used, but could be for undersampling of waveforms if eventually desired.
 
-export nu_low=0.492; # 610nm 
+export nu_low=0.246; # 1220nm =0.492; # 610nm 
 export nu_high=0.769; # 390nm 
 
 touch logfile
 
-# ensure all these amplitude modulations are in the very close vicinity of 1
+# ensure all these amplitude modulations produce reasonable spectral amplitude variation near 1. 
 #500.; # for tspan 1000 and fsPau()=.024, this gives a factor of 272034 with sqrt(272034)=522 to bring the chirp into the range of "1" for 
-#let's try instead applying chirp polynomial as an exponent... then amplitude will always be positive definate
-export amp0th=1.0 # I guess this one sort of causes double pulses if it's not high enough and the others cause zero crossings in the amplitude
+export amp0th=1.0 # 
 export amp1st=2.0 # 
 export amp2nd=4.0 # 
 export amp3rd=8.0 # 
 export amp4th=16.0 #
 export amp5th=32.0 #
 
-#500.; # for tspan 1000 and fsPau()=.024, this gives a factor of 272034 with sqrt(272034)=522 to bring the chirp into the range of "1" for 
+# for tspan 1000 and fsPau()=.024, this gives a factor of 272034 with sqrt(272034)=522 to bring the chirp into the range of "1" for 
+# values generally run from -val .. +val in uniform random distribution
 export chirp=100.0; 
 export TOD=100.0;
 export FOD=100.0;
 export fifthOD=100.0;
 # noise values to simulate unstable continuum, should be positive
+# nolonger used since the whole point is pulse-to-pulse random spectral variation.
 export chirpnoise=0; 
 export TODnoise=0;
 export FODnoise=0;
 export fifthODnoise=0;
 
+# keep gain=1 this is legacy from TimeTool project
 export gain=1;
 #export gain=200000000000; #20000000;
-export saturate=40960;
-export lamsamples=1024;
+export saturate=40960; # maybe not used, legacy
+export lamsamples=1024; # not used, legacy
 
 
 export filebase=$datadir"dataset";

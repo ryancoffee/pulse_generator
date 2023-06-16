@@ -236,32 +236,34 @@ int main(void)
 	chdims[0] = chirps.back().size();
 	for (size_t n=0;n<waves.size();n++){
 		std::string pulsename = "/sans/pulse_" + std::to_string((int)n);
-		std::string spectname = "/sans/spect_" + std::to_string((int)n);
-		std::string phasename = "/sans/phase_" + std::to_string((int)n);
-		std::string chirpname = "/sans/chirp_" + std::to_string((int)n);
+        	H5::Group * pulsePtr = new H5::Group( sansPtr->createGroup( pulsename )); // sans noise
+		std::string fieldname = pulsename + "/field";
+		std::string spectname = pulsename + "/spect";
+		std::string phasename = pulsename + "/phase";
+		std::string chirpname = pulsename + "/chirp";
 		// std::cerr << "n = " << (int)n << "\tpulsename = " << pulsename << std::endl << std::flush;
-		H5::DataSpace * dataspace = new H5::DataSpace( rank , dims );
-		H5::DataSet * datasetPtr = new H5::DataSet( sansPtr->createDataSet( pulsename, h5float, *dataspace ) );
+		H5::DataSpace * fieldspace = new H5::DataSpace( rank , dims );
+		H5::DataSet * fieldPtr = new H5::DataSet( pulsePtr->createDataSet( fieldname, h5float, *fieldspace ) );
 		H5::DataSpace * spectspace = new H5::DataSpace( rank , dims );
-		H5::DataSet * spectsetPtr = new H5::DataSet( sansPtr->createDataSet( spectname, h5float, *spectspace ) );
+		H5::DataSet * spectsetPtr = new H5::DataSet( pulsePtr->createDataSet( spectname, h5float, *spectspace ) );
 		H5::DataSpace * phasespace = new H5::DataSpace( rank , dims );
-		H5::DataSet * phasesetPtr = new H5::DataSet( sansPtr->createDataSet( phasename, h5float, *phasespace ) );
+		H5::DataSet * phasesetPtr = new H5::DataSet( pulsePtr->createDataSet( phasename, h5float, *phasespace ) );
 
 		H5::DataSpace * chirpspace = new H5::DataSpace( rank , chdims );
-		H5::DataSet * chirpsetPtr = new H5::DataSet( sansPtr->createDataSet( chirpname, h5float, *chirpspace ) );
+		H5::DataSet * chirpsetPtr = new H5::DataSet( pulsePtr->createDataSet( chirpname, h5float, *chirpspace ) );
 
 		/*
 		std::vector<float>::iterator maxelement;
 		maxelement = std::max_element(waves[n].begin(),waves[n].end());
 		std::cout << "address " << std::distance(waves[n].begin(),maxelement) << ", value = " << *(maxelement) << "\n";
 		*/
-		datasetPtr->write( waves[n].data(), h5float);
+		fieldPtr->write( waves[n].data(), h5float);
 		spectsetPtr->write( spects[n].data(), h5float);
 		phasesetPtr->write( phases[n].data(), h5float);
 		chirpsetPtr->write( chirps[n].data(), h5float);
 
-        	delete datasetPtr;
-        	delete dataspace;
+        	delete fieldPtr;
+        	delete fieldspace;
         	delete spectsetPtr;
         	delete spectspace;
         	delete phasesetPtr;
